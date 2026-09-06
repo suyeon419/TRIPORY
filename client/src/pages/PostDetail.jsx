@@ -12,6 +12,7 @@ const PostDetail = () => {
     const [comments, setComments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [commentText, setCommentText] = useState('');
+    const [myReaction, setMyReaction] = useState(null); // 'like' | 'dislike' | null
 
     // 후기 상세 조회
     useEffect(() => {
@@ -33,7 +34,25 @@ const PostDetail = () => {
             }
         };
         fetchPostDetail();
+
+        // 로그인 상태일 때만 내가 눌러둔 반응(좋아요/싫어요) 조회
+        if (localStorage.getItem('token')) {
+            api.get(`/posts/${postId}/reaction`)
+                .then((res) => setMyReaction(res.data.reaction))
+                .catch(() => setMyReaction(null));
+        }
     }, [postId]);
+
+    // 좋아요 / 싫어요
+    const handleReact = async (type) => {
+        try {
+            const res = await api.post(`/posts/${postId}/${type}`);
+            setPost((prev) => ({ ...prev, likes: res.data.likes, dislikes: res.data.dislikes }));
+            setMyReaction(res.data.my_reaction);
+        } catch (err) {
+            alert(err.response?.data?.message || '처리 실패');
+        }
+    };
 
     // 댓글 등록
     const handleAddComment = async (e) => {
@@ -68,6 +87,23 @@ const PostDetail = () => {
 
                 <div style={{ fontSize: '0.9rem', color: 'gray' }} className="mb-3">
                     📍 {post.region || '지역 정보 없음'} | 작성자: {post.author_name}
+                </div>
+
+                <div className="d-flex gap-2 mb-3">
+                    <Button
+                        variant={myReaction === 'like' ? 'primary' : 'outline-primary'}
+                        size="sm"
+                        onClick={() => handleReact('like')}
+                    >
+                        👍 좋아요 {post.likes}
+                    </Button>
+                    <Button
+                        variant={myReaction === 'dislike' ? 'danger' : 'outline-danger'}
+                        size="sm"
+                        onClick={() => handleReact('dislike')}
+                    >
+                        👎 싫어요 {post.dislikes}
+                    </Button>
                 </div>
 
                 {/* 이미지 목록 */}

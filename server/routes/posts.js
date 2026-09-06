@@ -123,6 +123,8 @@ router.get('/:postId', async (req, res) => {
                  p.content,
                  p.region,
                  p.is_advertised,
+                 p.likes,
+                 p.dislikes,
                  DATE_FORMAT(p.created_at, '%Y-%m-%d') AS created_at,
                  u.name AS author_name
              FROM posts p
@@ -171,6 +173,110 @@ router.get('/:postId', async (req, res) => {
         });
     } catch (err) {
         console.error('상세 조회 오류:', err);
+        res.status(500).json({ ok: false, message: '서버 오류' });
+    }
+});
+
+// ============================
+//   좋아요 / 싫어요 (토글 + 상호배타)
+// ============================
+function reactToPost(reactionType) {
+    const opposite = reactionType === 'like' ? 'dislike' : 'like';
+
+    return async (req, res) => {
+        const connection = await pool.getConnection();
+        try {
+            const { postId } = req.params;
+            const userId = req.user.user_id;
+
+            await connection.beginTransaction();
+
+            const [postRows] = await connection.query('SELECT post_id FROM posts WHERE post_id = ? FOR UPDATE', [
+                postId,
+            ]);
+            if (postRows.length === 0) {
+                await connection.rollback();
+                return res.status(404).json({ ok: false, message: '해당 게시글을 찾을 수 없습니다.' });
+            }
+
+            const [existing] = await connection.query(
+                'SELECT reaction FROM post_reactions WHERE post_id = ? AND user_id = ?',
+                [postId, userId]
+            );
+
+            let myReaction;
+
+            if (existing.length === 0) {
+                // 처음 누름 → 새로 등록
+                await connection.query('INSERT INTO post_reactions (post_id, user_id, reaction) VALUES (?, ?, ?)', [
+                    postId,
+                    userId,
+                    reactionType,
+                ]);
+                await connection.query(`UPDATE posts SET ${reactionType}s = ${reactionType}s + 1 WHERE post_id = ?`, [
+                    postId,
+                ]);
+                myReaction = reactionType;
+            } else if (existing[0].reaction === reactionType) {
+                // 같은 걸 다시 누름 → 취소
+                await connection.query('DELETE FROM post_reactions WHERE post_id = ? AND user_id = ?', [
+                    postId,
+                    userId,
+                ]);
+                await connection.query(`UPDATE posts SET ${reactionType}s = ${reactionType}s - 1 WHERE post_id = ?`, [
+                    postId,
+                ]);
+                myReaction = null;
+            } else {
+                // 반대를 누르고 있었음 → 전환
+                await connection.query('UPDATE post_reactions SET reaction = ? WHERE post_id = ? AND user_id = ?', [
+                    reactionType,
+                    postId,
+                    userId,
+                ]);
+                await connection.query(
+                    `UPDATE posts SET ${reactionType}s = ${reactionType}s + 1, ${opposite}s = ${opposite}s - 1 WHERE post_id = ?`,
+                    [postId]
+                );
+                myReaction = reactionType;
+            }
+
+            const [[counts]] = await connection.query('SELECT likes, dislikes FROM posts WHERE post_id = ?', [
+                postId,
+            ]);
+
+            await connection.commit();
+
+            res.json({ ok: true, likes: counts.likes, dislikes: counts.dislikes, my_reaction: myReaction });
+        } catch (err) {
+            await connection.rollback();
+            console.error(`${reactionType} 처리 오류:`, err);
+            res.status(500).json({ ok: false, message: '서버 오류' });
+        } finally {
+            connection.release();
+        }
+    };
+}
+
+router.post('/:postId/like', verifyToken, reactToPost('like'));
+router.post('/:postId/dislike', verifyToken, reactToPost('dislike'));
+
+// ============================
+//   내 반응(좋아요/싫어요) 조회 API
+// ============================
+router.get('/:postId/reaction', verifyToken, async (req, res) => {
+    try {
+        const { postId } = req.params;
+        const userId = req.user.user_id;
+
+        const [rows] = await pool.query('SELECT reaction FROM post_reactions WHERE post_id = ? AND user_id = ?', [
+            postId,
+            userId,
+        ]);
+
+        res.json({ ok: true, reaction: rows.length > 0 ? rows[0].reaction : null });
+    } catch (err) {
+        console.error('내 반응 조회 오류:', err);
         res.status(500).json({ ok: false, message: '서버 오류' });
     }
 });

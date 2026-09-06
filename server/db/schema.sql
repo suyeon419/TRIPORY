@@ -46,6 +46,16 @@ CREATE TABLE post_images (
     FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE post_reactions (
+    post_id    INT NOT NULL,
+    user_id    INT NOT NULL,
+    reaction   ENUM('like', 'dislike') NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (post_id, user_id),
+    FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE comments (
     comment_id INT AUTO_INCREMENT PRIMARY KEY,
     post_id    INT NOT NULL,
