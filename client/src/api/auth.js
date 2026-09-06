@@ -17,3 +17,15 @@ export const getProfile = async () => {
     const res = await api.get('/users/profile');
     return res.data; // ✅ 핵심
 };
+
+// 비밀번호 재설정 요청
+export const forgotPassword = async (data) => {
+    const res = await api.post('/users/forgot-password', data);
+    return res.data;
+};
+
+// 비밀번호 재설정
+export const resetPassword = async (data) => {
+    const res = await api.post('/users/reset-password', data);
+    return res.data;
+};

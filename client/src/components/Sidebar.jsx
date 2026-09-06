@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Modal, Form } from 'react-bootstrap';
-import { loginUser, registerUser, getProfile } from '../api/auth';
+import { loginUser, registerUser, getProfile, forgotPassword } from '../api/auth';
 import { useNavigate } from 'react-router-dom';
 
 import api from '../api/axios';
@@ -9,6 +9,10 @@ const Sidebar = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [showLogin, setShowLogin] = useState(false);
     const [showRegister, setShowRegister] = useState(false);
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
+    const [forgotEmail, setForgotEmail] = useState('');
+    const [resetInfo, setResetInfo] = useState(null); // { resetUrl }
+    const [forgotSending, setForgotSending] = useState(false);
     const [userInfo, setUserInfo] = useState(null);
     const navigate = useNavigate();
 
@@ -87,6 +91,25 @@ const Sidebar = () => {
             if (data.message) return alert(data.message);
 
             alert('회원가입 실패');
+        }
+    };
+
+    // ✅ 비밀번호 찾기
+    const handleForgotPassword = async (e) => {
+        e.preventDefault();
+        setResetInfo(null);
+
+        try {
+            setForgotSending(true);
+            const res = await forgotPassword({ email: forgotEmail });
+            setResetInfo({ resetUrl: res.resetUrl });
+        } catch (err) {
+            const data = err.response?.data;
+            if (!data) return alert('네트워크 오류');
+            if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) return alert(data.errors[0].msg);
+            alert(data.message || '요청 실패');
+        } finally {
+            setForgotSending(false);
         }
     };
 
@@ -205,7 +228,63 @@ const Sidebar = () => {
                                 회원가입
                             </span>
                         </small>
+                        <div className="mt-2">
+                            <small
+                                style={{ color: '#6c757d', cursor: 'pointer' }}
+                                onClick={() => {
+                                    setShowLogin(false);
+                                    setResetInfo(null);
+                                    setForgotEmail('');
+                                    setShowForgotPassword(true);
+                                }}
+                            >
+                                비밀번호를 잊으셨나요?
+                            </small>
+                        </div>
                     </div>
+                </Modal.Body>
+            </Modal>
+
+            {/* ========== 비밀번호 찾기 모달 ========== */}
+            <Modal show={showForgotPassword} onHide={() => setShowForgotPassword(false)} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title>비밀번호 찾기</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    {resetInfo ? (
+                        <div>
+                            <p className="mb-2">
+                                재설정 링크가 발급되었습니다. (이메일 발송 기능이 아직 없어 링크를 바로 보여드려요)
+                            </p>
+                            <div className="d-grid mb-2">
+                                <Button
+                                    variant="primary"
+                                    onClick={() => {
+                                        setShowForgotPassword(false);
+                                        navigate(new URL(resetInfo.resetUrl).pathname + new URL(resetInfo.resetUrl).search);
+                                    }}
+                                >
+                                    비밀번호 재설정하러 가기
+                                </Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <Form onSubmit={handleForgotPassword}>
+                            <Form.Group className="mb-3">
+                                <Form.Label>가입한 이메일</Form.Label>
+                                <Form.Control
+                                    type="email"
+                                    placeholder="이메일 입력"
+                                    value={forgotEmail}
+                                    onChange={(e) => setForgotEmail(e.target.value)}
+                                    required
+                                />
+                            </Form.Group>
+                            <Button type="submit" variant="primary" className="w-100" disabled={forgotSending}>
+                                {forgotSending ? '요청 중...' : '재설정 링크 받기'}
+                            </Button>
+                        </Form>
+                    )}
                 </Modal.Body>
             </Modal>
 

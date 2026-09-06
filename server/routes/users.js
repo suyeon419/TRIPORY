@@ -2,10 +2,14 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
 const pool = require('./db');
 require('dotenv').config();
 const { verifyToken } = require('../middlewares/auth');
+
+const RESET_TOKEN_TTL_MS = 30 * 60 * 1000; // 30분
+const hashResetToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
 // ============================
 //   회원가입 (Register)
@@ -49,6 +53,102 @@ router.post(
             console.error('회원가입 오류:', err);
             if (err.code === 'ER_DUP_ENTRY')
                 return res.status(409).json({ ok: false, message: '이미 사용중인 이메일입니다.' });
+            res.status(500).json({ ok: false, message: '서버 오류' });
+        }
+    }
+);
+
+// ============================
+//   비밀번호 재설정 요청 (Forgot Password)
+// ============================
+router.post('/forgot-password', [body('email').isEmail().withMessage('유효한 이메일 형식이 아닙니다.')], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+
+    const { email } = req.body;
+
+    try {
+        const [rows] = await pool.query('SELECT user_id FROM users WHERE email = ?', [email]);
+        if (rows.length === 0) {
+            return res.status(404).json({ ok: false, message: '해당 이메일로 가입된 계정을 찾을 수 없습니다.' });
+        }
+
+        const userId = rows[0].user_id;
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = hashResetToken(rawToken);
+        const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+
+        await pool.query(
+            `INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?, ?, ?)`,
+            [userId, tokenHash, expiresAt]
+        );
+
+        const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password?token=${rawToken}`;
+
+        res.json({
+            ok: true,
+            message: '재설정 링크가 발급되었습니다. (이메일 발송 미연동 - 아래 링크를 바로 사용하세요)',
+            resetUrl,
+            resetToken: rawToken,
+            expiresAt,
+        });
+    } catch (err) {
+        console.error('비밀번호 재설정 요청 오류:', err);
+        res.status(500).json({ ok: false, message: '서버 오류' });
+    }
+});
+
+// ============================
+//   비밀번호 재설정 (Reset Password)
+// ============================
+router.post(
+    '/reset-password',
+    [
+        body('token').notEmpty().withMessage('재설정 토큰이 필요합니다.'),
+        body('password')
+            .isLength({ min: 8 })
+            .withMessage('비밀번호는 8자 이상이어야 합니다.')
+            .matches(/[A-Za-z]/)
+            .withMessage('비밀번호는 영문을 포함해야 합니다.')
+            .matches(/\d/)
+            .withMessage('비밀번호는 숫자를 포함해야 합니다.'),
+    ],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+
+        const { token, password } = req.body;
+        const tokenHash = hashResetToken(token);
+
+        try {
+            const [rows] = await pool.query(
+                `SELECT reset_id, user_id, expires_at, used_at
+                 FROM password_resets
+                 WHERE token_hash = ?
+                 ORDER BY reset_id DESC
+                 LIMIT 1`,
+                [tokenHash]
+            );
+
+            if (rows.length === 0) {
+                return res.status(400).json({ ok: false, message: '유효하지 않은 재설정 링크입니다.' });
+            }
+
+            const reset = rows[0];
+            if (reset.used_at) {
+                return res.status(400).json({ ok: false, message: '이미 사용된 재설정 링크입니다.' });
+            }
+            if (new Date(reset.expires_at) < new Date()) {
+                return res.status(400).json({ ok: false, message: '재설정 링크가 만료되었습니다. 다시 요청해주세요.' });
+            }
+
+            const hashed = await bcrypt.hash(password, 10);
+            await pool.query('UPDATE users SET password = ? WHERE user_id = ?', [hashed, reset.user_id]);
+            await pool.query('UPDATE password_resets SET used_at = NOW() WHERE reset_id = ?', [reset.reset_id]);
+
+            res.json({ ok: true, message: '비밀번호가 재설정되었습니다. 새 비밀번호로 로그인해주세요.' });
+        } catch (err) {
+            console.error('비밀번호 재설정 오류:', err);
             res.status(500).json({ ok: false, message: '서버 오류' });
         }
     }
