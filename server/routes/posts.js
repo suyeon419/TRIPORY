@@ -289,6 +289,7 @@ router.get('/', async (req, res) => {
     try {
         const { filter, sort, region } = req.query;
         let where = 'WHERE 1=1';
+        const params = [];
 
         if (filter === 'noads') {
             where += ' AND p.is_advertised = 0';
@@ -297,7 +298,8 @@ router.get('/', async (req, res) => {
         }
 
         if (region) {
-            where += ` AND p.region = '${region}'`;
+            where += ' AND p.region = ?';
+            params.push(region);
         }
 
         // ✅ 기본 정렬: 최신순(post_id DESC)
@@ -318,7 +320,7 @@ router.get('/', async (req, res) => {
             ${orderBy}
         `;
 
-        const [rows] = await pool.query(sql);
+        const [rows] = await pool.query(sql, params);
         res.status(200).json({ ok: true, data: rows });
     } catch (err) {
         console.error('후기 목록 조회 오류:', err);
