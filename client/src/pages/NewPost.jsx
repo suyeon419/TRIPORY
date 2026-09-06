@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, Card, Form } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { EditorContent, useEditor } from '@tiptap/react';
@@ -12,6 +12,7 @@ const NewPost = () => {
     const [title, setTitle] = useState('');
     const [region, setRegion] = useState('');
     const [is_advertised, setIsAdvertised] = useState('false');
+    const [galleryImages, setGalleryImages] = useState([]); // [{ file, preview }]
 
     const regions = [
         '서울',
@@ -61,6 +62,30 @@ const NewPost = () => {
         input.click();
     };
 
+    // 갤러리용 사진 첨부 핸들러 (본문과 별도로 목록/상세에 노출될 이미지)
+    const handleGalleryFilesChange = (e) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+
+        const withPreview = files.map((file) => ({ file, preview: URL.createObjectURL(file) }));
+        setGalleryImages((prev) => [...prev, ...withPreview]);
+
+        e.target.value = ''; // 같은 파일을 다시 선택할 수 있도록 초기화
+    };
+
+    const handleRemoveGalleryImage = (idx) => {
+        setGalleryImages((prev) => {
+            URL.revokeObjectURL(prev[idx].preview);
+            return prev.filter((_, i) => i !== idx);
+        });
+    };
+
+    // 컴포넌트 언마운트 시 미리보기 URL 정리
+    useEffect(() => {
+        return () => galleryImages.forEach((img) => URL.revokeObjectURL(img.preview));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // Tiptap 에디터 설정
     const editor = useEditor({
         extensions: [StarterKit, Image],
@@ -82,12 +107,16 @@ const NewPost = () => {
             return;
         }
 
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('content', content);
+        formData.append('region', region);
+        formData.append('is_advertised', is_advertised);
+        galleryImages.forEach(({ file }) => formData.append('images', file));
+
         try {
-            await api.post('/posts', {
-                title,
-                content,
-                region,
-                is_advertised,
+            await api.post('/posts', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
             });
             alert('후기가 등록되었습니다!');
             navigate('/posts');
@@ -174,6 +203,39 @@ const NewPost = () => {
                     >
                         <EditorContent editor={editor} />
                     </div>
+
+                    <Form.Group className="mb-3">
+                        <Form.Label>사진 첨부</Form.Label>
+                        <Form.Control type="file" accept="image/*" multiple onChange={handleGalleryFilesChange} />
+                        {galleryImages.length > 0 && (
+                            <div className="d-flex flex-wrap gap-2 mt-2">
+                                {galleryImages.map((img, idx) => (
+                                    <div key={img.preview} style={{ position: 'relative' }}>
+                                        <img
+                                            src={img.preview}
+                                            alt={`첨부 이미지 ${idx + 1}`}
+                                            style={{ width: 90, height: 90, objectFit: 'cover', borderRadius: 8 }}
+                                        />
+                                        <Button
+                                            size="sm"
+                                            variant="danger"
+                                            onClick={() => handleRemoveGalleryImage(idx)}
+                                            style={{
+                                                position: 'absolute',
+                                                top: -8,
+                                                right: -8,
+                                                borderRadius: '50%',
+                                                padding: '0 6px',
+                                                lineHeight: '20px',
+                                            }}
+                                        >
+                                            ×
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </Form.Group>
 
                     <Form.Group className="mb-3">
                         <Form.Label>광고 글 여부</Form.Label>

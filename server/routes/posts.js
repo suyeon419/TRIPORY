@@ -26,7 +26,7 @@ const upload = multer({ storage });
 // ============================
 //   후기 글 작성 API
 // ============================
-router.post('/', verifyToken, upload.array('images', 10), async (req, res) => {
+router.post('/', verifyToken, upload.array('images'), async (req, res) => {
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
@@ -222,7 +222,7 @@ router.get('/', async (req, res) => {
 // ============================
 //   후기 글 수정 API (통합형)
 // ============================
-router.put('/:postId', verifyToken, upload.array('images', 10), async (req, res) => {
+router.put('/:postId', verifyToken, upload.array('images'), async (req, res) => {
     const connection = await pool.getConnection();
     await connection.beginTransaction();
 

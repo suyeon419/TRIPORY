@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Button, Form } from 'react-bootstrap';
-import api from '../api/axios';
+import api, { API_BASE_URL } from '../api/axios';
 
 const PostDetail = () => {
     const { postId } = useParams();
@@ -76,7 +76,7 @@ const PostDetail = () => {
                         {images.map((img, idx) => (
                             <img
                                 key={idx}
-                                src={img.image_url}
+                                src={`${API_BASE_URL}/uploads/${img.image_url}`}
                                 alt={`post-${idx}`}
                                 style={{
                                     width: '100%',
