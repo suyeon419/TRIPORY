@@ -20,8 +20,13 @@ const ScheduleDetail = () => {
         name: '',
         address: '',
         memo: '',
-        is_reserved: 'N',
+        is_reservable: 'N',
     });
+    const [editingPlaceId, setEditingPlaceId] = useState(null);
+
+    // 일정 수정 모달 관련 상태
+    const [showEditSchedule, setShowEditSchedule] = useState(false);
+    const [editSchedule, setEditSchedule] = useState({ title: '', start_date: '', end_date: '', is_public: 'N' });
 
     // 장소명 변경 핸들러
     const handleNameChange = (e) => {
@@ -117,16 +122,30 @@ const ScheduleDetail = () => {
     // 장소 추가 모달 열기
     const handleOpenModal = (day) => {
         setSelectedDay(day);
+        setEditingPlaceId(null);
         setNewPlace({
             name: '',
             address: '',
             memo: '',
-            is_reserved: 'N',
+            is_reservable: 'N',
         });
         setShowModal(true);
     };
 
-    // 장소 추가
+    // 장소 수정 모달 열기
+    const handleOpenEditPlace = (place) => {
+        setSelectedDay(null);
+        setEditingPlaceId(place.place_id);
+        setNewPlace({
+            name: place.name,
+            address: place.address || '',
+            memo: place.memo || '',
+            is_reservable: place.is_reservable || 'N',
+        });
+        setShowModal(true);
+    };
+
+    // 장소 추가 / 수정
     const handleAddPlace = async (e) => {
         e.preventDefault();
         if (!newPlace.name || !newPlace.address) {
@@ -135,13 +154,72 @@ const ScheduleDetail = () => {
         }
 
         try {
-            await api.post(`/schedules/${selectedDay.day_id}/places`, newPlace);
-            alert('새 장소가 추가되었습니다!');
+            if (editingPlaceId) {
+                await api.put(`/schedules/places/${editingPlaceId}`, newPlace);
+                alert('장소가 수정되었습니다!');
+            } else {
+                await api.post(`/schedules/${selectedDay.day_id}/places`, newPlace);
+                alert('새 장소가 추가되었습니다!');
+            }
             setShowModal(false);
             fetchSchedule(); // 새로고침
         } catch (err) {
-            console.error('장소 추가 오류:', err);
-            alert(err.response?.data?.message || '등록 실패');
+            console.error('장소 저장 오류:', err);
+            alert(err.response?.data?.message || '저장 실패');
+        }
+    };
+
+    // 장소 삭제
+    const handleDeletePlace = async (placeId) => {
+        if (!window.confirm('이 장소를 삭제하시겠습니까?')) return;
+
+        try {
+            await api.delete(`/schedules/places/${placeId}`);
+            fetchSchedule();
+        } catch (err) {
+            alert(err.response?.data?.message || '삭제 실패');
+        }
+    };
+
+    // 일정 수정 모달 열기
+    const handleOpenEditSchedule = () => {
+        setEditSchedule({
+            title: schedule.title,
+            start_date: formatDate(schedule.start_date),
+            end_date: formatDate(schedule.end_date),
+            is_public: schedule.is_public,
+        });
+        setShowEditSchedule(true);
+    };
+
+    // 일정 수정 저장
+    const handleUpdateSchedule = async (e) => {
+        e.preventDefault();
+        if (new Date(editSchedule.start_date) > new Date(editSchedule.end_date)) {
+            alert('시작일이 종료일보다 늦을 수 없습니다.');
+            return;
+        }
+
+        try {
+            await api.put(`/schedules/${scheduleId}`, editSchedule);
+            alert('일정이 수정되었습니다.');
+            setShowEditSchedule(false);
+            fetchSchedule();
+        } catch (err) {
+            alert(err.response?.data?.message || '수정 실패');
+        }
+    };
+
+    // 일정 삭제
+    const handleDeleteSchedule = async () => {
+        if (!window.confirm('일정을 삭제하시겠습니까? 등록된 모든 장소도 함께 삭제됩니다.')) return;
+
+        try {
+            await api.delete(`/schedules/${scheduleId}`);
+            alert('일정이 삭제되었습니다.');
+            navigate('/schedules');
+        } catch (err) {
+            alert(err.response?.data?.message || '삭제 실패');
         }
     };
 
@@ -158,21 +236,34 @@ const ScheduleDetail = () => {
         <div style={{ margin: 'auto', maxWidth: '900px', padding: '20px' }}>
             <Card className="shadow-sm border-0 p-4">
                 {/* 일정 정보 */}
-                <div className="mb-3">
-                    <h4 className="fw-bold">{schedule.title}</h4>
-                    <p className="text-muted mb-1">
-                        {formatDate(schedule.start_date)} ~ {formatDate(schedule.end_date)}{' '}
-                        <span className="text-secondary">
-                            (
-                            {schedule.nights && schedule.days
-                                ? `${schedule.nights}박 ${schedule.days}일`
-                                : '일정 계산 중'}
-                            )
-                        </span>
-                    </p>
-                    <small className={schedule.is_public === 'Y' ? 'text-success' : 'text-secondary'}>
-                        {schedule.is_public === 'Y' ? '공개 일정' : '비공개 일정'}
-                    </small>
+                <div className="mb-3 d-flex justify-content-between align-items-start">
+                    <div>
+                        <h4 className="fw-bold">{schedule.title}</h4>
+                        <p className="text-muted mb-1">
+                            {formatDate(schedule.start_date)} ~ {formatDate(schedule.end_date)}{' '}
+                            <span className="text-secondary">
+                                (
+                                {schedule.nights && schedule.days
+                                    ? `${schedule.nights}박 ${schedule.days}일`
+                                    : '일정 계산 중'}
+                                )
+                            </span>
+                        </p>
+                        <small className={schedule.is_public === 'Y' ? 'text-success' : 'text-secondary'}>
+                            {schedule.is_public === 'Y' ? '공개 일정' : '비공개 일정'}
+                        </small>
+                    </div>
+
+                    {userId === Number(schedule.user_id) && (
+                        <div className="d-flex gap-2">
+                            <Button size="sm" variant="outline-secondary" onClick={handleOpenEditSchedule}>
+                                수정
+                            </Button>
+                            <Button size="sm" variant="outline-danger" onClick={handleDeleteSchedule}>
+                                삭제
+                            </Button>
+                        </div>
+                    )}
                 </div>
 
                 <hr />
@@ -237,7 +328,27 @@ const ScheduleDetail = () => {
                                                 border: '1px solid #e0e0e0',
                                             }}
                                         >
-                                            <h5 className="fw-bold mb-2 text-dark">{place.name}</h5>
+                                            <div className="d-flex justify-content-between align-items-start">
+                                                <h5 className="fw-bold mb-2 text-dark">{place.name}</h5>
+                                                {userId === Number(schedule.user_id) && (
+                                                    <div className="d-flex gap-2">
+                                                        <small
+                                                            role="button"
+                                                            className="text-primary"
+                                                            onClick={() => handleOpenEditPlace(place)}
+                                                        >
+                                                            수정
+                                                        </small>
+                                                        <small
+                                                            role="button"
+                                                            className="text-danger"
+                                                            onClick={() => handleDeletePlace(place.place_id)}
+                                                        >
+                                                            삭제
+                                                        </small>
+                                                    </div>
+                                                )}
+                                            </div>
                                             {place.address && (
                                                 <p className="mb-1 text-muted" style={{ fontSize: '0.9rem' }}>
                                                     📍 {place.address}
@@ -254,7 +365,7 @@ const ScheduleDetail = () => {
                                                     ✏️ {place.memo}
                                                 </p>
                                             )}
-                                            {place.is_reserved === 'Y' && (
+                                            {place.is_reservable === 'Y' && (
                                                 <span className="badge bg-info text-dark mt-1">예약 필요</span>
                                             )}
                                         </div>
@@ -277,7 +388,9 @@ const ScheduleDetail = () => {
             {/* 장소 추가 모달 */}
             <Modal show={showModal} onHide={() => setShowModal(false)} centered>
                 <Modal.Header closeButton>
-                    <Modal.Title>장소 추가 (Day {selectedDay?.day_order})</Modal.Title>
+                    <Modal.Title>
+                        {editingPlaceId ? '장소 수정' : `장소 추가 (Day ${selectedDay?.day_order})`}
+                    </Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     <Form onSubmit={handleAddPlace}>
@@ -337,11 +450,11 @@ const ScheduleDetail = () => {
                         <Form.Group className="mb-3">
                             <Form.Label>예약 필요 여부</Form.Label>
                             <Form.Select
-                                value={newPlace.is_reserved}
+                                value={newPlace.is_reservable}
                                 onChange={(e) =>
                                     setNewPlace({
                                         ...newPlace,
-                                        is_reserved: e.target.value,
+                                        is_reservable: e.target.value,
                                     })
                                 }
                             >
@@ -355,7 +468,69 @@ const ScheduleDetail = () => {
                                 취소
                             </Button>{' '}
                             <Button variant="primary" type="submit">
-                                등록
+                                {editingPlaceId ? '저장' : '등록'}
+                            </Button>
+                        </div>
+                    </Form>
+                </Modal.Body>
+            </Modal>
+
+            {/* 일정 수정 모달 */}
+            <Modal show={showEditSchedule} onHide={() => setShowEditSchedule(false)} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title>일정 수정</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Form onSubmit={handleUpdateSchedule}>
+                        <Form.Group className="mb-3">
+                            <Form.Label>일정 제목</Form.Label>
+                            <Form.Control
+                                type="text"
+                                value={editSchedule.title}
+                                onChange={(e) => setEditSchedule({ ...editSchedule, title: e.target.value })}
+                                required
+                            />
+                        </Form.Group>
+
+                        <Form.Group className="mb-3">
+                            <Form.Label>여행 기간</Form.Label>
+                            <div className="d-flex gap-2">
+                                <Form.Control
+                                    type="date"
+                                    value={editSchedule.start_date}
+                                    onChange={(e) => setEditSchedule({ ...editSchedule, start_date: e.target.value })}
+                                    required
+                                />
+                                <span className="mt-2">~</span>
+                                <Form.Control
+                                    type="date"
+                                    value={editSchedule.end_date}
+                                    onChange={(e) => setEditSchedule({ ...editSchedule, end_date: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <Form.Text className="text-muted">
+                                기간을 줄이면 범위 밖 날짜의 장소는 함께 삭제됩니다.
+                            </Form.Text>
+                        </Form.Group>
+
+                        <Form.Group className="mb-3">
+                            <Form.Label>공개 여부</Form.Label>
+                            <Form.Select
+                                value={editSchedule.is_public}
+                                onChange={(e) => setEditSchedule({ ...editSchedule, is_public: e.target.value })}
+                            >
+                                <option value="N">비공개</option>
+                                <option value="Y">공개</option>
+                            </Form.Select>
+                        </Form.Group>
+
+                        <div className="text-end">
+                            <Button variant="secondary" onClick={() => setShowEditSchedule(false)}>
+                                취소
+                            </Button>{' '}
+                            <Button variant="primary" type="submit">
+                                저장
                             </Button>
                         </div>
                     </Form>

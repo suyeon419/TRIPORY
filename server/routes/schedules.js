@@ -329,4 +329,202 @@ router.get('/:scheduleId', async (req, res) => {
     }
 });
 
+// ============================
+//   여행 일정 수정 API
+// ============================
+router.put('/:scheduleId', verifyToken, async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+        const { scheduleId } = req.params;
+        const userId = req.user.user_id;
+        const { title, start_date, end_date, is_public } = req.body;
+
+        await connection.beginTransaction();
+
+        const [rows] = await connection.query('SELECT * FROM schedules WHERE schedule_id = ?', [scheduleId]);
+        if (rows.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ ok: false, message: '해당 일정을 찾을 수 없습니다.' });
+        }
+
+        const schedule = rows[0];
+        if (schedule.user_id !== userId) {
+            await connection.rollback();
+            return res.status(403).json({ ok: false, message: '본인 일정만 수정할 수 있습니다.' });
+        }
+
+        // mysql2가 DATE 컬럼을 로컬 자정 기준 Date 객체로 반환하므로,
+        // toISOString(UTC 기준)으로 변환하면 시간대에 따라 하루 밀릴 수 있음 → 로컬 게터로 복원
+        const dbDateToStr = (d) => {
+            const date = new Date(d);
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        };
+
+        const newTitle = title || schedule.title;
+        const newStart = start_date || dbDateToStr(schedule.start_date);
+        const newEnd = end_date || dbDateToStr(schedule.end_date);
+        const newIsPublic = is_public || schedule.is_public;
+
+        if (new Date(newStart) > new Date(newEnd)) {
+            await connection.rollback();
+            return res.status(400).json({ ok: false, message: '종료일이 시작일보다 빠릅니다.' });
+        }
+
+        await connection.query(
+            `UPDATE schedules SET title = ?, start_date = ?, end_date = ?, is_public = ? WHERE schedule_id = ?`,
+            [newTitle, newStart, newEnd, newIsPublic, scheduleId]
+        );
+
+        // ✅ 날짜 범위가 바뀐 경우: 기존 범위 밖 Day는 삭제(장소도 함께 삭제), 겹치는 Day는 유지, 새로 늘어난 날짜만 추가
+        const [existingDays] = await connection.query(
+            'SELECT day_id, date FROM schedule_days WHERE schedule_id = ?',
+            [scheduleId]
+        );
+        const existingByDate = new Map(existingDays.map((d) => [dbDateToStr(d.date), d.day_id]));
+
+        const newDates = [];
+        for (let d = new Date(newStart); d <= new Date(newEnd); d.setDate(d.getDate() + 1)) {
+            newDates.push(d.toISOString().split('T')[0]);
+        }
+
+        for (const [date, dayId] of existingByDate) {
+            if (!newDates.includes(date)) {
+                await connection.query('DELETE FROM schedule_days WHERE day_id = ?', [dayId]);
+            }
+        }
+
+        // (schedule_id, day_order)에 UNIQUE 제약이 있어 재배정 도중 값이 겹칠 수 있으므로,
+        // 남아있는 Day들을 먼저 충돌 없는 임시 순서로 옮겨둔 뒤 최종 순서를 배정한다.
+        await connection.query('UPDATE schedule_days SET day_order = day_order + 1000000 WHERE schedule_id = ?', [
+            scheduleId,
+        ]);
+
+        let dayOrder = 1;
+        for (const date of newDates) {
+            if (existingByDate.has(date)) {
+                await connection.query('UPDATE schedule_days SET day_order = ? WHERE day_id = ?', [
+                    dayOrder,
+                    existingByDate.get(date),
+                ]);
+            } else {
+                await connection.query('INSERT INTO schedule_days (schedule_id, day_order, date) VALUES (?, ?, ?)', [
+                    scheduleId,
+                    dayOrder,
+                    date,
+                ]);
+            }
+            dayOrder++;
+        }
+
+        await connection.commit();
+        res.json({ ok: true, message: '일정이 수정되었습니다.' });
+    } catch (err) {
+        await connection.rollback();
+        console.error('일정 수정 오류:', err);
+        res.status(500).json({ ok: false, message: '서버 오류' });
+    } finally {
+        connection.release();
+    }
+});
+
+// ============================
+//   여행 일정 삭제 API
+// ============================
+router.delete('/:scheduleId', verifyToken, async (req, res) => {
+    try {
+        const { scheduleId } = req.params;
+        const userId = req.user.user_id;
+
+        const [rows] = await pool.query('SELECT user_id FROM schedules WHERE schedule_id = ?', [scheduleId]);
+        if (rows.length === 0) {
+            return res.status(404).json({ ok: false, message: '해당 일정을 찾을 수 없습니다.' });
+        }
+        if (rows[0].user_id !== userId) {
+            return res.status(403).json({ ok: false, message: '본인 일정만 삭제할 수 있습니다.' });
+        }
+
+        await pool.query('DELETE FROM schedules WHERE schedule_id = ?', [scheduleId]);
+
+        res.json({ ok: true, message: '일정이 삭제되었습니다.' });
+    } catch (err) {
+        console.error('일정 삭제 오류:', err);
+        res.status(500).json({ ok: false, message: '서버 오류' });
+    }
+});
+
+// ============================
+//   상세 일정(장소) 수정 API
+// ============================
+router.put('/places/:placeId', verifyToken, async (req, res) => {
+    try {
+        const { placeId } = req.params;
+        const userId = req.user.user_id;
+        const { name, address, memo, is_reservable } = req.body;
+
+        if (!name) {
+            return res.status(400).json({ ok: false, message: '장소 이름을 입력해주세요.' });
+        }
+
+        const [rows] = await pool.query(
+            `SELECT s.user_id
+             FROM schedule_places p
+             JOIN schedule_days d ON p.day_id = d.day_id
+             JOIN schedules s ON d.schedule_id = s.schedule_id
+             WHERE p.place_id = ?`,
+            [placeId]
+        );
+        if (rows.length === 0) {
+            return res.status(404).json({ ok: false, message: '해당 장소를 찾을 수 없습니다.' });
+        }
+        if (rows[0].user_id !== userId) {
+            return res.status(403).json({ ok: false, message: '본인 일정에만 장소를 수정할 수 있습니다.' });
+        }
+
+        await pool.query(
+            `UPDATE schedule_places SET name = ?, address = ?, memo = ?, is_reservable = ? WHERE place_id = ?`,
+            [name, address || null, memo || null, is_reservable || 'N', placeId]
+        );
+
+        res.json({ ok: true, message: '장소가 수정되었습니다.' });
+    } catch (err) {
+        console.error('장소 수정 오류:', err);
+        res.status(500).json({ ok: false, message: '서버 오류' });
+    }
+});
+
+// ============================
+//   상세 일정(장소) 삭제 API
+// ============================
+router.delete('/places/:placeId', verifyToken, async (req, res) => {
+    try {
+        const { placeId } = req.params;
+        const userId = req.user.user_id;
+
+        const [rows] = await pool.query(
+            `SELECT s.user_id
+             FROM schedule_places p
+             JOIN schedule_days d ON p.day_id = d.day_id
+             JOIN schedules s ON d.schedule_id = s.schedule_id
+             WHERE p.place_id = ?`,
+            [placeId]
+        );
+        if (rows.length === 0) {
+            return res.status(404).json({ ok: false, message: '해당 장소를 찾을 수 없습니다.' });
+        }
+        if (rows[0].user_id !== userId) {
+            return res.status(403).json({ ok: false, message: '본인 일정에만 장소를 삭제할 수 있습니다.' });
+        }
+
+        await pool.query('DELETE FROM schedule_places WHERE place_id = ?', [placeId]);
+
+        res.json({ ok: true, message: '장소가 삭제되었습니다.' });
+    } catch (err) {
+        console.error('장소 삭제 오류:', err);
+        res.status(500).json({ ok: false, message: '서버 오류' });
+    }
+});
+
 module.exports = router;

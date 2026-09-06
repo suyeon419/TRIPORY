@@ -82,6 +82,7 @@ CREATE TABLE schedule_days (
     schedule_id INT NOT NULL,
     day_order   INT NOT NULL,
     date        DATE NOT NULL,
+    UNIQUE KEY schedule_id (schedule_id, day_order),
     FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
