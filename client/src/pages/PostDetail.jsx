@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Button, Form } from 'react-bootstrap';
 import api, { API_BASE_URL } from '../api/axios';
+import { getProfile } from '../api/auth';
 
 const PostDetail = () => {
     const { postId } = useParams();
@@ -13,6 +14,9 @@ const PostDetail = () => {
     const [loading, setLoading] = useState(true);
     const [commentText, setCommentText] = useState('');
     const [myReaction, setMyReaction] = useState(null); // 'like' | 'dislike' | null
+    const [myUserId, setMyUserId] = useState(null);
+    const [editingCommentId, setEditingCommentId] = useState(null);
+    const [editText, setEditText] = useState('');
 
     // 후기 상세 조회
     useEffect(() => {
@@ -35,11 +39,15 @@ const PostDetail = () => {
         };
         fetchPostDetail();
 
-        // 로그인 상태일 때만 내가 눌러둔 반응(좋아요/싫어요) 조회
+        // 로그인 상태일 때만 내가 눌러둔 반응(좋아요/싫어요) + 내 계정 정보 조회
         if (localStorage.getItem('token')) {
             api.get(`/posts/${postId}/reaction`)
                 .then((res) => setMyReaction(res.data.reaction))
                 .catch(() => setMyReaction(null));
+
+            getProfile()
+                .then((res) => setMyUserId(res.user.user_id))
+                .catch(() => setMyUserId(null));
         }
     }, [postId]);
 
@@ -71,6 +79,43 @@ const PostDetail = () => {
             setComments(res.data.comments);
         } catch (err) {
             alert(err.response?.data?.message || '댓글 등록 실패');
+        }
+    };
+
+    // 댓글 수정 시작
+    const handleStartEditComment = (comment) => {
+        setEditingCommentId(comment.comment_id);
+        setEditText(comment.content);
+    };
+
+    const handleCancelEditComment = () => {
+        setEditingCommentId(null);
+        setEditText('');
+    };
+
+    // 댓글 수정 저장
+    const handleUpdateComment = async (commentId) => {
+        if (!editText.trim()) return alert('댓글을 입력해주세요.');
+
+        try {
+            await api.put(`/comments/${commentId}`, { content: editText });
+            setComments((prev) => prev.map((c) => (c.comment_id === commentId ? { ...c, content: editText } : c)));
+            setEditingCommentId(null);
+            setEditText('');
+        } catch (err) {
+            alert(err.response?.data?.message || '댓글 수정 실패');
+        }
+    };
+
+    // 댓글 삭제
+    const handleDeleteComment = async (commentId) => {
+        if (!window.confirm('댓글을 삭제하시겠습니까?')) return;
+
+        try {
+            await api.delete(`/comments/${commentId}`);
+            setComments((prev) => prev.filter((c) => c.comment_id !== commentId));
+        } catch (err) {
+            alert(err.response?.data?.message || '댓글 삭제 실패');
         }
     };
 
@@ -146,8 +191,61 @@ const PostDetail = () => {
                     ) : (
                         comments.map((c) => (
                             <div key={c.comment_id} className="border-bottom py-2" style={{ fontSize: '0.95rem' }}>
-                                <strong>{c.author_name}</strong> <small className="text-muted">{c.created_at}</small>
-                                <p className="mb-0">{c.content}</p>
+                                <div className="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <strong>{c.author_name}</strong>{' '}
+                                        <small className="text-muted">{c.created_at}</small>
+                                    </div>
+                                    {myUserId === c.user_id && editingCommentId !== c.comment_id && (
+                                        <div className="d-flex gap-2">
+                                            <small
+                                                role="button"
+                                                className="text-primary"
+                                                onClick={() => handleStartEditComment(c)}
+                                            >
+                                                수정
+                                            </small>
+                                            <small
+                                                role="button"
+                                                className="text-danger"
+                                                onClick={() => handleDeleteComment(c.comment_id)}
+                                            >
+                                                삭제
+                                            </small>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {editingCommentId === c.comment_id ? (
+                                    <div className="mt-2">
+                                        <Form.Control
+                                            as="textarea"
+                                            rows={2}
+                                            value={editText}
+                                            onChange={(e) => setEditText(e.target.value)}
+                                        />
+                                        <div className="text-end mt-2 d-flex justify-content-end gap-2">
+                                            <Button
+                                                variant="outline-secondary"
+                                                size="sm"
+                                                onClick={handleCancelEditComment}
+                                            >
+                                                취소
+                                            </Button>
+                                            <Button
+                                                variant="primary"
+                                                size="sm"
+                                                onClick={() => handleUpdateComment(c.comment_id)}
+                                            >
+                                                저장
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="mb-0" style={{ whiteSpace: 'pre-wrap' }}>
+                                        {c.content}
+                                    </p>
+                                )}
                             </div>
                         ))
                     )}

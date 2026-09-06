@@ -151,8 +151,9 @@ router.get('/:postId', async (req, res) => {
         // 댓글 가져오기
         const [comments] = await pool.query(
             `SELECT 
-                 c.comment_id, 
-                 c.content, 
+                 c.comment_id,
+                 c.user_id,
+                 c.content,
                  DATE_FORMAT(c.created_at, '%Y-%m-%d') AS created_at,
                  u.name AS author_name
              FROM comments c

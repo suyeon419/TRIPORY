@@ -54,8 +54,9 @@ router.get('/:postId', async (req, res) => {
 
         // ✅ 댓글 목록 조회 (날짜 YYYY-MM-DD 형식)
         const [comments] = await pool.query(
-            `SELECT 
+            `SELECT
                 c.comment_id,
+                c.user_id,
                 c.content,
                 DATE_FORMAT(c.created_at, '%Y-%m-%d') AS created_at,
                 u.name AS author_name
@@ -72,6 +73,61 @@ router.get('/:postId', async (req, res) => {
         });
     } catch (err) {
         console.error('댓글 조회 오류:', err);
+        res.status(500).json({ ok: false, message: '서버 오류' });
+    }
+});
+
+// ============================
+//   댓글 수정 API
+// ============================
+router.put('/:commentId', verifyToken, async (req, res) => {
+    try {
+        const { commentId } = req.params;
+        const userId = req.user.user_id;
+        const { content } = req.body;
+
+        if (!content || content.trim() === '') {
+            return res.status(400).json({ ok: false, message: '댓글 내용을 입력해주세요.' });
+        }
+
+        const [rows] = await pool.query('SELECT user_id FROM comments WHERE comment_id = ?', [commentId]);
+        if (rows.length === 0) {
+            return res.status(404).json({ ok: false, message: '해당 댓글을 찾을 수 없습니다.' });
+        }
+        if (rows[0].user_id !== userId) {
+            return res.status(403).json({ ok: false, message: '본인 댓글만 수정할 수 있습니다.' });
+        }
+
+        await pool.query('UPDATE comments SET content = ? WHERE comment_id = ?', [content, commentId]);
+
+        res.json({ ok: true, message: '댓글이 수정되었습니다.' });
+    } catch (err) {
+        console.error('댓글 수정 오류:', err);
+        res.status(500).json({ ok: false, message: '서버 오류' });
+    }
+});
+
+// ============================
+//   댓글 삭제 API
+// ============================
+router.delete('/:commentId', verifyToken, async (req, res) => {
+    try {
+        const { commentId } = req.params;
+        const userId = req.user.user_id;
+
+        const [rows] = await pool.query('SELECT user_id FROM comments WHERE comment_id = ?', [commentId]);
+        if (rows.length === 0) {
+            return res.status(404).json({ ok: false, message: '해당 댓글을 찾을 수 없습니다.' });
+        }
+        if (rows[0].user_id !== userId) {
+            return res.status(403).json({ ok: false, message: '본인 댓글만 삭제할 수 있습니다.' });
+        }
+
+        await pool.query('DELETE FROM comments WHERE comment_id = ?', [commentId]);
+
+        res.json({ ok: true, message: '댓글이 삭제되었습니다.' });
+    } catch (err) {
+        console.error('댓글 삭제 오류:', err);
         res.status(500).json({ ok: false, message: '서버 오류' });
     }
 });
