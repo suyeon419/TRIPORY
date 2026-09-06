@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { Card, Form, Button, Row, Col, Accordion, Alert } from 'react-bootstrap';
+import { Card, Form, Button, Accordion, Alert } from 'react-bootstrap';
 import api from '../api/axios';
 
 const Support = () => {
     const [form, setForm] = useState({
-        name: '',
-        email: '',
         type: 'general',
         message: '',
     });
@@ -21,13 +19,11 @@ const Support = () => {
         e.preventDefault();
         setSending(true);
         try {
-            // ✅ 추후 백엔드 연결 시 여기에 api.post('/inquiry', form)
-            console.log('문의 내용:', form);
-            await new Promise((r) => setTimeout(r, 1000)); // 더미 지연
+            await api.post('/inquiries', form);
             setSuccess(true);
-            setForm({ name: '', email: '', type: 'general', message: '' });
+            setForm({ type: 'general', message: '' });
         } catch (err) {
-            alert('문의 전송에 실패했습니다.');
+            alert(err.response?.data?.message || '문의 전송에 실패했습니다.');
         } finally {
             setSending(false);
         }
@@ -58,35 +54,6 @@ const Support = () => {
                 )}
 
                 <Form onSubmit={handleSubmit}>
-                    <Row className="mb-3">
-                        <Col md={6}>
-                            <Form.Group>
-                                <Form.Label>이름</Form.Label>
-                                <Form.Control
-                                    type="text"
-                                    name="name"
-                                    value={form.name}
-                                    onChange={handleChange}
-                                    placeholder="이름 입력"
-                                    required
-                                />
-                            </Form.Group>
-                        </Col>
-                        <Col md={6}>
-                            <Form.Group>
-                                <Form.Label>이메일</Form.Label>
-                                <Form.Control
-                                    type="email"
-                                    name="email"
-                                    value={form.email}
-                                    onChange={handleChange}
-                                    placeholder="example@tripory.com"
-                                    required
-                                />
-                            </Form.Group>
-                        </Col>
-                    </Row>
-
                     <Form.Group className="mb-3">
                         <Form.Label>문의 유형</Form.Label>
                         <Form.Select name="type" value={form.type} onChange={handleChange}>

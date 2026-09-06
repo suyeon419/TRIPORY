@@ -96,3 +96,12 @@ CREATE TABLE schedule_places (
     is_reservable ENUM('Y', 'N') NOT NULL DEFAULT 'N',
     FOREIGN KEY (day_id) REFERENCES schedule_days(day_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+CREATE TABLE inquiries (
+    inquiry_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id    INT NOT NULL,
+    type       VARCHAR(20) NOT NULL,
+    message    TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
