@@ -1,9 +1,21 @@
 import api from './axios';
 
-// 회원가입
-export const registerUser = async (data) => {
-    const res = await api.post('/users/register', data);
-    return res.data; // ✅ 핵심
+// 회원가입 1단계: 이메일 인증코드 발급
+export const requestRegisterCode = async (data) => {
+    const res = await api.post('/users/register/request-code', data);
+    return res.data;
+};
+
+// 회원가입 2단계: 인증코드 확인 후 계정 생성
+export const verifyRegisterCode = async (data) => {
+    const res = await api.post('/users/register/verify', data);
+    return res.data;
+};
+
+// 이메일(아이디) 찾기
+export const findEmail = async (data) => {
+    const res = await api.post('/users/find-email', data);
+    return res.data;
 };
 
 // 로그인

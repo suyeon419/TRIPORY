@@ -11,11 +11,21 @@ const { verifyToken } = require('../middlewares/auth');
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000; // 30분
 const hashResetToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
+const VERIFICATION_CODE_TTL_MS = 10 * 60 * 1000; // 10분
+const hashVerificationCode = (code) => crypto.createHash('sha256').update(code).digest('hex');
+const generateVerificationCode = () => String(crypto.randomInt(100000, 1000000));
+
+const maskEmail = (email) => {
+    const [local, domain] = email.split('@');
+    if (local.length <= 2) return `${local[0]}*@${domain}`;
+    return `${local.slice(0, 2)}${'*'.repeat(local.length - 2)}@${domain}`;
+};
+
 // ============================
-//   회원가입 (Register)
+//   회원가입 1단계: 이메일 인증코드 발급
 // ============================
 router.post(
-    '/register',
+    '/register/request-code',
     [
         body('email').isEmail().withMessage('유효한 이메일 형식이 아닙니다.'),
         body('password')
@@ -38,21 +48,128 @@ router.post(
             const [dup] = await pool.query('SELECT user_id FROM users WHERE email = ?', [email]);
             if (dup.length > 0) return res.status(409).json({ ok: false, message: '이미 사용중인 이메일입니다.' });
 
-            const hashed = await bcrypt.hash(password, 10);
-            const [result] = await pool.query(
-                `INSERT INTO users (email, password, name, phone)
-         VALUES (?, ?, ?, ?)`,
-                [email, hashed, name, phone ?? null]
+            const passwordHash = await bcrypt.hash(password, 10);
+            const code = generateVerificationCode();
+            const codeHash = hashVerificationCode(code);
+            const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MS);
+
+            // 같은 이메일로 남아있던 이전 미완료 인증 요청은 정리
+            await pool.query('DELETE FROM email_verifications WHERE email = ? AND used_at IS NULL', [email]);
+
+            await pool.query(
+                `INSERT INTO email_verifications (email, code_hash, name, phone, password_hash, expires_at)
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+                [email, codeHash, name, phone ?? null, passwordHash, expiresAt]
             );
+
+            res.json({
+                ok: true,
+                message: '인증코드가 발급되었습니다. (이메일 발송 미연동 - 아래 코드를 바로 입력하세요)',
+                verificationCode: code,
+                expiresAt,
+            });
+        } catch (err) {
+            console.error('인증코드 발급 오류:', err);
+            res.status(500).json({ ok: false, message: '서버 오류' });
+        }
+    }
+);
+
+// ============================
+//   회원가입 2단계: 인증코드 확인 후 계정 생성
+// ============================
+router.post(
+    '/register/verify',
+    [
+        body('email').isEmail().withMessage('유효한 이메일 형식이 아닙니다.'),
+        body('code').notEmpty().withMessage('인증코드를 입력해주세요.'),
+    ],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+
+        const { email, code } = req.body;
+        const codeHash = hashVerificationCode(code);
+
+        try {
+            const [rows] = await pool.query(
+                `SELECT * FROM email_verifications
+                 WHERE email = ? AND code_hash = ?
+                 ORDER BY verification_id DESC
+                 LIMIT 1`,
+                [email, codeHash]
+            );
+
+            if (rows.length === 0) {
+                return res.status(400).json({ ok: false, message: '인증코드가 일치하지 않습니다.' });
+            }
+
+            const verification = rows[0];
+            if (verification.used_at) {
+                return res.status(400).json({ ok: false, message: '이미 사용된 인증코드입니다.' });
+            }
+            if (new Date(verification.expires_at) < new Date()) {
+                return res.status(400).json({ ok: false, message: '인증코드가 만료되었습니다. 다시 요청해주세요.' });
+            }
+
+            const [dup] = await pool.query('SELECT user_id FROM users WHERE email = ?', [email]);
+            if (dup.length > 0) {
+                return res.status(409).json({ ok: false, message: '이미 사용중인 이메일입니다.' });
+            }
+
+            const [result] = await pool.query(`INSERT INTO users (email, password, name, phone) VALUES (?, ?, ?, ?)`, [
+                verification.email,
+                verification.password_hash,
+                verification.name,
+                verification.phone,
+            ]);
+            await pool.query('UPDATE email_verifications SET used_at = NOW() WHERE verification_id = ?', [
+                verification.verification_id,
+            ]);
 
             res.status(201).json({
                 ok: true,
-                user: { user_id: result.insertId, email, name, phone: phone ?? null },
+                message: '가입이 완료되었습니다.',
+                user: {
+                    user_id: result.insertId,
+                    email: verification.email,
+                    name: verification.name,
+                    phone: verification.phone,
+                },
             });
         } catch (err) {
-            console.error('회원가입 오류:', err);
+            console.error('회원가입 인증 오류:', err);
             if (err.code === 'ER_DUP_ENTRY')
                 return res.status(409).json({ ok: false, message: '이미 사용중인 이메일입니다.' });
+            res.status(500).json({ ok: false, message: '서버 오류' });
+        }
+    }
+);
+
+// ============================
+//   이메일(아이디) 찾기
+// ============================
+router.post(
+    '/find-email',
+    [
+        body('name').trim().notEmpty().withMessage('이름을 입력해주세요.'),
+        body('phone').trim().notEmpty().withMessage('전화번호를 입력해주세요.'),
+    ],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+
+        const { name, phone } = req.body;
+
+        try {
+            const [rows] = await pool.query('SELECT email FROM users WHERE name = ? AND phone = ?', [name, phone]);
+            if (rows.length === 0) {
+                return res.status(404).json({ ok: false, message: '일치하는 계정을 찾을 수 없습니다.' });
+            }
+
+            res.json({ ok: true, maskedEmail: maskEmail(rows[0].email) });
+        } catch (err) {
+            console.error('이메일 찾기 오류:', err);
             res.status(500).json({ ok: false, message: '서버 오류' });
         }
     }

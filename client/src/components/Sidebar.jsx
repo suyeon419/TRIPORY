@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Modal, Form } from 'react-bootstrap';
-import { loginUser, registerUser, getProfile, forgotPassword } from '../api/auth';
+import { Card, Button, Modal, Form, Alert } from 'react-bootstrap';
+import { loginUser, requestRegisterCode, verifyRegisterCode, getProfile, forgotPassword, findEmail } from '../api/auth';
 import { useNavigate } from 'react-router-dom';
 
 import api from '../api/axios';
@@ -13,6 +13,21 @@ const Sidebar = () => {
     const [forgotEmail, setForgotEmail] = useState('');
     const [resetInfo, setResetInfo] = useState(null); // { resetUrl }
     const [forgotSending, setForgotSending] = useState(false);
+
+    const [showFindEmail, setShowFindEmail] = useState(false);
+    const [findName, setFindName] = useState('');
+    const [findPhone, setFindPhone] = useState('');
+    const [foundEmail, setFoundEmail] = useState(null);
+    const [findSending, setFindSending] = useState(false);
+
+    // 회원가입: 1단계(정보 입력) / 2단계(이메일 인증코드 확인)
+    const [registerStep, setRegisterStep] = useState('form');
+    const [pendingEmail, setPendingEmail] = useState('');
+    const [verificationCode, setVerificationCode] = useState('');
+    const [codeInput, setCodeInput] = useState('');
+    const [registerSending, setRegisterSending] = useState(false);
+    const [verifySending, setVerifySending] = useState(false);
+
     const [userInfo, setUserInfo] = useState(null);
     const navigate = useNavigate();
 
@@ -66,8 +81,16 @@ const Sidebar = () => {
         }
     };
 
-    // ✅ 회원가입
-    const handleRegister = async (e) => {
+    // ✅ 회원가입 상태 초기화
+    const resetRegisterState = () => {
+        setRegisterStep('form');
+        setPendingEmail('');
+        setVerificationCode('');
+        setCodeInput('');
+    };
+
+    // ✅ 회원가입 1단계: 이메일 인증코드 발급
+    const handleRequestCode = async (e) => {
         e.preventDefault();
         const email = e.target.registerEmail.value;
         const name = e.target.registerNickname.value;
@@ -78,19 +101,58 @@ const Sidebar = () => {
         if (password !== confirm) return alert('비밀번호가 일치하지 않습니다.');
 
         try {
-            await registerUser({ email, password, name, phone });
+            setRegisterSending(true);
+            const res = await requestRegisterCode({ email, password, name, phone });
+            setPendingEmail(email);
+            setVerificationCode(res.verificationCode);
+            setCodeInput('');
+            setRegisterStep('verify');
+        } catch (err) {
+            const data = err.response?.data;
+            if (!data) return alert('네트워크 오류');
+            if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) return alert(data.errors[0].msg);
+            alert(data.message || '인증코드 발급 실패');
+        } finally {
+            setRegisterSending(false);
+        }
+    };
+
+    // ✅ 회원가입 2단계: 인증코드 확인
+    const handleVerifyCode = async (e) => {
+        e.preventDefault();
+
+        try {
+            setVerifySending(true);
+            await verifyRegisterCode({ email: pendingEmail, code: codeInput });
             alert('회원가입 완료! 로그인해주세요.');
+            resetRegisterState();
             setShowRegister(false);
             setShowLogin(true);
         } catch (err) {
             const data = err.response?.data;
             if (!data) return alert('네트워크 오류');
-
             if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) return alert(data.errors[0].msg);
+            alert(data.message || '인증 실패');
+        } finally {
+            setVerifySending(false);
+        }
+    };
 
-            if (data.message) return alert(data.message);
+    // ✅ 아이디(이메일) 찾기
+    const handleFindEmail = async (e) => {
+        e.preventDefault();
 
-            alert('회원가입 실패');
+        try {
+            setFindSending(true);
+            const res = await findEmail({ name: findName, phone: findPhone });
+            setFoundEmail(res.maskedEmail);
+        } catch (err) {
+            const data = err.response?.data;
+            if (!data) return alert('네트워크 오류');
+            if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) return alert(data.errors[0].msg);
+            alert(data.message || '조회 실패');
+        } finally {
+            setFindSending(false);
         }
     };
 
@@ -228,7 +290,19 @@ const Sidebar = () => {
                                 회원가입
                             </span>
                         </small>
-                        <div className="mt-2">
+                        <div className="mt-2 d-flex justify-content-center gap-3">
+                            <small
+                                style={{ color: '#6c757d', cursor: 'pointer' }}
+                                onClick={() => {
+                                    setShowLogin(false);
+                                    setFoundEmail(null);
+                                    setFindName('');
+                                    setFindPhone('');
+                                    setShowFindEmail(true);
+                                }}
+                            >
+                                아이디(이메일) 찾기
+                            </small>
                             <small
                                 style={{ color: '#6c757d', cursor: 'pointer' }}
                                 onClick={() => {
@@ -288,13 +362,118 @@ const Sidebar = () => {
                 </Modal.Body>
             </Modal>
 
-            {/* ========== 회원가입 모달 ========== */}
-            <Modal show={showRegister} onHide={() => setShowRegister(false)} centered>
+            {/* ========== 아이디(이메일) 찾기 모달 ========== */}
+            <Modal show={showFindEmail} onHide={() => setShowFindEmail(false)} centered>
                 <Modal.Header closeButton>
-                    <Modal.Title>회원가입</Modal.Title>
+                    <Modal.Title>아이디(이메일) 찾기</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    <Form onSubmit={handleRegister}>
+                    {foundEmail ? (
+                        <div>
+                            <p className="mb-2">회원님의 이메일은 다음과 같습니다.</p>
+                            <Alert variant="success" className="text-center fw-bold mb-3">
+                                {foundEmail}
+                            </Alert>
+                            <div className="d-grid">
+                                <Button
+                                    variant="primary"
+                                    onClick={() => {
+                                        setShowFindEmail(false);
+                                        setShowLogin(true);
+                                    }}
+                                >
+                                    로그인하러 가기
+                                </Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <Form onSubmit={handleFindEmail}>
+                            <Form.Group className="mb-3">
+                                <Form.Label>이름</Form.Label>
+                                <Form.Control
+                                    type="text"
+                                    placeholder="가입 시 등록한 이름"
+                                    value={findName}
+                                    onChange={(e) => setFindName(e.target.value)}
+                                    required
+                                />
+                            </Form.Group>
+                            <Form.Group className="mb-3">
+                                <Form.Label>전화번호</Form.Label>
+                                <Form.Control
+                                    type="tel"
+                                    placeholder="예: 010-1234-5678"
+                                    value={findPhone}
+                                    onChange={(e) => setFindPhone(e.target.value)}
+                                    required
+                                />
+                                <Form.Text className="text-muted">
+                                    가입 시 등록한 전화번호와 정확히 일치해야 합니다. 전화번호를 등록하지 않았다면
+                                    이 방법으로 찾을 수 없어요.
+                                </Form.Text>
+                            </Form.Group>
+                            <Button type="submit" variant="primary" className="w-100" disabled={findSending}>
+                                {findSending ? '조회 중...' : '이메일 찾기'}
+                            </Button>
+                        </Form>
+                    )}
+                </Modal.Body>
+            </Modal>
+
+            {/* ========== 회원가입 모달 ========== */}
+            <Modal
+                show={showRegister}
+                onHide={() => {
+                    setShowRegister(false);
+                    resetRegisterState();
+                }}
+                centered
+            >
+                <Modal.Header closeButton>
+                    <Modal.Title>{registerStep === 'form' ? '회원가입' : '이메일 인증'}</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    {registerStep === 'verify' ? (
+                        <div>
+                            <p className="mb-2">
+                                <strong>{pendingEmail}</strong>로 인증코드가 발급되었습니다.
+                                <br />
+                                (이메일 발송 기능이 아직 없어 코드를 바로 보여드려요)
+                            </p>
+                            <Alert variant="info" className="text-center fw-bold" style={{ letterSpacing: '3px' }}>
+                                {verificationCode}
+                            </Alert>
+                            <Form onSubmit={handleVerifyCode}>
+                                <Form.Group className="mb-3">
+                                    <Form.Label>인증코드 입력</Form.Label>
+                                    <Form.Control
+                                        type="text"
+                                        placeholder="6자리 코드 입력"
+                                        value={codeInput}
+                                        onChange={(e) => setCodeInput(e.target.value)}
+                                        required
+                                    />
+                                </Form.Group>
+                                <Button
+                                    type="submit"
+                                    variant="primary"
+                                    className="w-100 mb-2"
+                                    disabled={verifySending}
+                                >
+                                    {verifySending ? '확인 중...' : '인증 완료'}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline-secondary"
+                                    className="w-100"
+                                    onClick={() => setRegisterStep('form')}
+                                >
+                                    정보 다시 입력하기
+                                </Button>
+                            </Form>
+                        </div>
+                    ) : (
+                    <Form onSubmit={handleRequestCode}>
                         <Form.Group className="mb-3" controlId="registerEmail">
                             <Form.Label>이메일</Form.Label>
                             <Form.Control type="email" placeholder="이메일 입력" required />
@@ -320,10 +499,11 @@ const Sidebar = () => {
                             <Form.Control type="password" placeholder="비밀번호 재입력" required />
                         </Form.Group>
 
-                        <Button type="submit" variant="primary" className="w-100">
-                            회원가입 완료
+                        <Button type="submit" variant="primary" className="w-100" disabled={registerSending}>
+                            {registerSending ? '요청 중...' : '인증코드 받기'}
                         </Button>
                     </Form>
+                    )}
                 </Modal.Body>
             </Modal>
         </>

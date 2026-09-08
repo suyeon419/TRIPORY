@@ -16,6 +16,18 @@ CREATE TABLE users (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
+CREATE TABLE email_verifications (
+    verification_id INT AUTO_INCREMENT PRIMARY KEY,
+    email           VARCHAR(255) NOT NULL,
+    code_hash       VARCHAR(255) NOT NULL,
+    name            VARCHAR(100) NOT NULL,
+    phone           VARCHAR(20),
+    password_hash   VARCHAR(255) NOT NULL,
+    expires_at      DATETIME NOT NULL,
+    used_at         DATETIME NULL,
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
 CREATE TABLE password_resets (
     reset_id   INT AUTO_INCREMENT PRIMARY KEY,
     user_id    INT NOT NULL,
