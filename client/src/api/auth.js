@@ -21,13 +21,13 @@ export const findEmail = async (data) => {
 // 로그인
 export const loginUser = async (data) => {
     const res = await api.post('/users/login', data);
-    return res.data; // ✅ 핵심
+    return res.data;
 };
 
 // 내 프로필 조회
 export const getProfile = async () => {
     const res = await api.get('/users/profile');
-    return res.data; // ✅ 핵심
+    return res.data;
 };
 
 // 비밀번호 재설정 요청

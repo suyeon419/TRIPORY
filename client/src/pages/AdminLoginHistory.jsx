@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Spinner, Button, Card } from 'react-bootstrap';
+import { BsLock, BsShieldLock, BsArrowLeft } from 'react-icons/bs';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 
@@ -39,7 +40,9 @@ const AdminLoginHistory = () => {
         return (
             <div style={{ maxWidth: '480px', margin: '80px auto', padding: '20px' }}>
                 <Card className="p-4 shadow-sm border-0 text-center" style={{ borderRadius: '14px' }}>
-                    <div style={{ fontSize: '2rem' }}>🔒</div>
+                    <div style={{ fontSize: '2rem' }}>
+                        <BsLock />
+                    </div>
                     <h6 className="fw-bold mt-2 mb-1">접근 권한이 없습니다</h6>
                     <p className="text-muted mb-3" style={{ fontSize: '0.9rem' }}>
                         관리자만 볼 수 있는 페이지예요.
@@ -53,7 +56,10 @@ const AdminLoginHistory = () => {
 
     return (
         <div style={{ maxWidth: '1000px', margin: '80px auto', padding: '20px' }}>
-            <h4 className="fw-bold mb-4">🛡️ [관리자] 전체 로그인 이력</h4>
+            <h4 className="fw-bold mb-4">
+                <BsShieldLock className="me-2" />
+                [관리자] 전체 로그인 이력
+            </h4>
 
             {logs.length === 0 ? (
                 <p className="text-muted">로그인 기록이 없습니다.</p>
@@ -86,7 +92,8 @@ const AdminLoginHistory = () => {
 
             <div className="text-center mt-4">
                 <Button variant="outline-secondary" onClick={() => navigate('/')}>
-                    ← 홈으로
+                    <BsArrowLeft className="me-1" />
+                    홈으로
                 </Button>
             </div>
         </div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Button, Spinner, Modal, Form } from 'react-bootstrap';
+import { BsArrowRepeat, BsCalendar3, BsPlusLg, BsGeoAlt, BsPencil } from 'react-icons/bs';
 import api from '../api/axios';
 import axios from 'axios';
 
@@ -45,7 +46,7 @@ const ScheduleDetail = () => {
         const KAKAO_KEY = '81055070c6f64c7dfaece23c6d4d8a41'; // REST API 키
 
         try {
-            console.log('🔍 검색 요청 시작:', name);
+            console.log('검색 요청 시작:', name);
             const res = await axios.get('https://dapi.kakao.com/v2/local/search/keyword.json', {
                 headers: {
                     Authorization: `KakaoAK ${KAKAO_KEY.trim()}`,
@@ -81,7 +82,7 @@ const ScheduleDetail = () => {
         if (token) {
             try {
                 const payload = JSON.parse(atob(token.split('.')[1]));
-                // ✅ 숫자 타입으로 변환 (문자열 비교 방지)
+                // 숫자 타입으로 변환 (문자열 비교 방지)
                 setUserId(Number(payload.user_id));
             } catch (err) {
                 console.warn('토큰 파싱 오류:', err);
@@ -223,7 +224,7 @@ const ScheduleDetail = () => {
         }
     };
 
-    // ✅ 공개 일정 복제
+    // 공개 일정 복제
     const handleCopySchedule = async () => {
         if (!window.confirm('이 일정을 내 일정으로 복제하시겠습니까?')) return;
 
@@ -266,7 +267,10 @@ const ScheduleDetail = () => {
                             {schedule.is_public === 'Y' ? '공개 일정' : '비공개 일정'}
                         </small>
                         {schedule.is_public === 'Y' && (
-                            <small className="text-muted ms-2">🔁 {schedule.copy_count ?? 0}회 복제됨</small>
+                            <small className="text-muted ms-2">
+                                <BsArrowRepeat className="me-1" />
+                                {schedule.copy_count ?? 0}회 복제됨
+                            </small>
                         )}
                     </div>
 
@@ -283,7 +287,8 @@ const ScheduleDetail = () => {
                         userId &&
                         schedule.is_public === 'Y' && (
                             <Button size="sm" variant="outline-success" onClick={handleCopySchedule}>
-                                🔁 내 일정으로 복제
+                                <BsArrowRepeat className="me-1" />
+                                내 일정으로 복제
                             </Button>
                         )
                     )}
@@ -296,13 +301,15 @@ const ScheduleDetail = () => {
                     <div key={day.day_id} className="mb-5">
                         <div className="d-flex justify-content-between align-items-center mb-3">
                             <h6 className="fw-bold text-success mb-0">
-                                📅 Day {day.day_order} ({formatDate(day.date)})
+                                <BsCalendar3 className="me-1" />
+                                Day {day.day_order} ({formatDate(day.date)})
                             </h6>
 
                             {/* 작성자만 버튼 표시 */}
                             {userId === Number(schedule.user_id) && (
                                 <Button size="sm" variant="outline-primary" onClick={() => handleOpenModal(day)}>
-                                    ➕ 장소 추가
+                                    <BsPlusLg className="me-1" />
+                                    장소 추가
                                 </Button>
                             )}
                         </div>
@@ -374,7 +381,8 @@ const ScheduleDetail = () => {
                                             </div>
                                             {place.address && (
                                                 <p className="mb-1 text-muted" style={{ fontSize: '0.9rem' }}>
-                                                    📍 {place.address}
+                                                    <BsGeoAlt className="me-1" />
+                                                    {place.address}
                                                 </p>
                                             )}
                                             {place.memo && (
@@ -385,7 +393,8 @@ const ScheduleDetail = () => {
                                                         color: '#555',
                                                     }}
                                                 >
-                                                    ✏️ {place.memo}
+                                                    <BsPencil className="me-1" />
+                                                    {place.memo}
                                                 </p>
                                             )}
                                             {place.is_reservable === 'Y' && (

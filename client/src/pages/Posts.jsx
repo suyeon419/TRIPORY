@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Button, Form } from 'react-bootstrap';
+import { BsPencil, BsGeoAlt, BsHandThumbsUp, BsHandThumbsDown } from 'react-icons/bs';
 import api from '../api/axios';
 import { useNavigate } from 'react-router-dom';
 
@@ -88,7 +89,8 @@ const Posts = () => {
                 </div>
 
                 <Button variant="primary" onClick={() => navigate('/posts/new')}>
-                    후기 작성 ✏️
+                    <BsPencil className="me-1" />
+                    후기 작성
                 </Button>
             </div>
 
@@ -118,13 +120,16 @@ const Posts = () => {
                             <div style={{ flex: 1 }}>
                                 <h6 className="mb-1">{post.title}</h6>
                                 <div style={{ fontSize: '0.9rem', color: 'gray' }}>
-                                    📍 {post.region || '지역 정보 없음'} | 작성자: {post.author_name}
+                                    <BsGeoAlt className="me-1" />
+                                    {post.region || '지역 정보 없음'} | 작성자: {post.author_name}
                                 </div>
                             </div>
 
                             <div style={{ textAlign: 'right', minWidth: '160px' }}>
                                 <div style={{ fontSize: '0.85rem', color: '#555' }}>
-                                    👍 {post.likes} / 👎 {post.dislikes}
+                                    <BsHandThumbsUp className="me-1" />
+                                    {post.likes} / <BsHandThumbsDown className="mx-1" />
+                                    {post.dislikes}
                                 </div>
                                 <small className="text-muted">
                                     {post.created_at

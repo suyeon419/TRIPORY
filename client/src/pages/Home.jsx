@@ -1,6 +1,7 @@
 // src/pages/Home.jsx
 import React, { useEffect, useRef } from 'react';
 import { Container, Row, Col, Button, Card, Badge, Carousel } from 'react-bootstrap';
+import { BsEye, BsShieldCheck, BsChatDots, BsLightningCharge } from 'react-icons/bs';
 import { useNavigate } from 'react-router-dom';
 
 const useReveal = () => {
@@ -70,7 +71,7 @@ const Home = () => {
           transform: translateY(-4px);
           box-shadow: 0 14px 28px rgba(0,0,0,.12);
         }
-        .feature-emoji {
+        .feature-icon {
           font-size: 28px;
           padding: 12px;
           border-radius: 12px;
@@ -166,7 +167,9 @@ const Home = () => {
                 <Row className="g-3">
                     <Col md={3} sm={6}>
                         <Card className="soft-card p-3 reveal" ref={reveal}>
-                            <div className="feature-emoji mb-2">👀</div>
+                            <div className="feature-icon mb-2">
+                                <BsEye />
+                            </div>
                             <Card.Title className="fw-bold">낮은 진입장벽</Card.Title>
                             <Card.Text className="text-muted mb-2">누구나 바로 익숙해지는 인터페이스.</Card.Text>
                             <Badge bg="success" pill>
@@ -176,17 +179,21 @@ const Home = () => {
                     </Col>
                     <Col md={3} sm={6}>
                         <Card className="soft-card p-3 reveal" ref={reveal}>
-                            <div className="feature-emoji mb-2">🛡️</div>
+                            <div className="feature-icon mb-2">
+                                <BsShieldCheck />
+                            </div>
                             <Card.Title className="fw-bold">광고 필터링</Card.Title>
                             <Card.Text className="text-muted mb-2">과한 광고는 걸러내고 핵심 정보에 집중.</Card.Text>
                             <Badge bg="success" pill>
-                                신뢰도 ↑
+                                신뢰도
                             </Badge>
                         </Card>
                     </Col>
                     <Col md={3} sm={6}>
                         <Card className="soft-card p-3 reveal" ref={reveal}>
-                            <div className="feature-emoji mb-2">💬</div>
+                            <div className="feature-icon mb-2">
+                                <BsChatDots />
+                            </div>
                             <Card.Title className="fw-bold">커뮤니티</Card.Title>
                             <Card.Text className="text-muted mb-2">댓글·좋아요로 서로 질문하고 답하는 문화.</Card.Text>
                             <Badge bg="success" pill>
@@ -196,7 +203,9 @@ const Home = () => {
                     </Col>
                     <Col md={3} sm={6}>
                         <Card className="soft-card p-3 reveal" ref={reveal}>
-                            <div className="feature-emoji mb-2">⚡</div>
+                            <div className="feature-icon mb-2">
+                                <BsLightningCharge />
+                            </div>
                             <Card.Title className="fw-bold">일정 복사</Card.Title>
                             <Card.Text className="text-muted mb-2">공개 일정을 내 일정으로 복사해 바로 사용.</Card.Text>
                             <Badge bg="success" pill>

@@ -15,7 +15,7 @@ var app = express();
 
 const cors = require('cors');
 
-// ✅ CORS 설정
+// CORS 설정
 app.use(
     cors({
         origin: 'http://localhost:5173', // 프론트엔드 주소

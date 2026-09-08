@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Card, Form, Button, Accordion, Alert } from 'react-bootstrap';
+import { BsEnvelope } from 'react-icons/bs';
 import api from '../api/axios';
 
 const Support = () => {
@@ -31,7 +32,10 @@ const Support = () => {
 
     return (
         <div style={{ maxWidth: '900px', margin: 'auto', padding: '20px' }}>
-            <h4 className="mb-4">📮 문의하기</h4>
+            <h4 className="mb-4">
+                <BsEnvelope className="me-2" />
+                문의하기
+            </h4>
 
             {/* 상단 안내 카드 */}
             <Card className="p-4 mb-4 shadow-sm border-0" style={{ borderRadius: '14px' }}>
@@ -49,7 +53,7 @@ const Support = () => {
 
                 {success && (
                     <Alert variant="success" onClose={() => setSuccess(false)} dismissible>
-                        문의가 성공적으로 접수되었습니다. 빠른 시일 내에 답변드리겠습니다 😊
+                        문의가 성공적으로 접수되었습니다. 빠른 시일 내에 답변드리겠습니다.
                     </Alert>
                 )}
 
@@ -100,7 +104,7 @@ const Support = () => {
                     <Accordion.Item eventKey="1">
                         <Accordion.Header>작성한 후기를 수정하거나 삭제할 수 있나요?</Accordion.Header>
                         <Accordion.Body>
-                            네, 마이페이지 → 내 활동 → 내가 쓴 글에서 수정 또는 삭제가 가능합니다.
+                            네, 마이페이지 내 활동 내가 쓴 글에서 수정 또는 삭제가 가능합니다.
                         </Accordion.Body>
                     </Accordion.Item>
 

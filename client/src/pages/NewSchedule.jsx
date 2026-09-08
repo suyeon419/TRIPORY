@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Form, Button, Card } from 'react-bootstrap';
+import { BsAirplane } from 'react-icons/bs';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 
@@ -52,7 +53,10 @@ const NewSchedule = () => {
     return (
         <div style={{ margin: 'auto', maxWidth: '700px', padding: '20px' }}>
             <Card className="shadow-sm border-0 p-4">
-                <h4 className="mb-4 text-center">✈️ 새 여행 일정 만들기</h4>
+                <h4 className="mb-4 text-center">
+                    <BsAirplane className="me-2" />
+                    새 여행 일정 만들기
+                </h4>
 
                 <Form onSubmit={handleSubmit}>
                     <Form.Group className="mb-3">

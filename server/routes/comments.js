@@ -3,10 +3,10 @@ const router = express.Router();
 const pool = require('./db'); // DB 연결
 const { verifyToken } = require('../middlewares/auth');
 
-console.log('✅ comments.js 라우터 등록 완료');
+console.log('comments.js 라우터 등록 완료');
 
 // ============================
-//   댓글 작성 API
+// 댓글 작성 API
 // ============================
 router.post('/:postId', verifyToken, async (req, res) => {
     try {
@@ -14,18 +14,18 @@ router.post('/:postId', verifyToken, async (req, res) => {
         const userId = req.user.user_id;
         const { content } = req.body;
 
-        // 🧩 유효성 검사
+        // 유효성 검사
         if (!content || content.trim() === '') {
             return res.status(400).json({ ok: false, message: '댓글 내용을 입력해주세요.' });
         }
 
-        // 🔍 해당 게시글 존재 여부 확인
+        // 해당 게시글 존재 여부 확인
         const [postRows] = await pool.query('SELECT post_id FROM posts WHERE post_id = ?', [postId]);
         if (postRows.length === 0) {
             return res.status(404).json({ ok: false, message: '해당 게시글을 찾을 수 없습니다.' });
         }
 
-        // ✅ 댓글 등록
+        // 댓글 등록
         await pool.query(`INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)`, [
             postId,
             userId,
@@ -40,19 +40,19 @@ router.post('/:postId', verifyToken, async (req, res) => {
 });
 
 // ============================
-//   댓글 조회 API
+// 댓글 조회 API
 // ============================
 router.get('/:postId', async (req, res) => {
     try {
         const postId = req.params.postId;
 
-        // 🔍 해당 게시글 존재 여부 확인
+        // 해당 게시글 존재 여부 확인
         const [postRows] = await pool.query('SELECT post_id FROM posts WHERE post_id = ?', [postId]);
         if (postRows.length === 0) {
             return res.status(404).json({ ok: false, message: '해당 게시글을 찾을 수 없습니다.' });
         }
 
-        // ✅ 댓글 목록 조회 (날짜 YYYY-MM-DD 형식)
+        // 댓글 목록 조회 (날짜 YYYY-MM-DD 형식)
         const [comments] = await pool.query(
             `SELECT
                 c.comment_id,
@@ -78,7 +78,7 @@ router.get('/:postId', async (req, res) => {
 });
 
 // ============================
-//   댓글 수정 API
+// 댓글 수정 API
 // ============================
 router.put('/:commentId', verifyToken, async (req, res) => {
     try {
@@ -108,7 +108,7 @@ router.put('/:commentId', verifyToken, async (req, res) => {
 });
 
 // ============================
-//   댓글 삭제 API
+// 댓글 삭제 API
 // ============================
 router.delete('/:commentId', verifyToken, async (req, res) => {
     try {

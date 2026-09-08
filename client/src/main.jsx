@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
 
-import MainLayout from './layout/MainLayout'; // ✅ 레이아웃
+import MainLayout from './layout/MainLayout'; // 레이아웃
 import Home from './pages/Home';
 import Profile from './pages/Profile';
 import Posts from './pages/Posts';

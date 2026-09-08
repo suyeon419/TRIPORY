@@ -6,10 +6,10 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-console.log('✅ posts.js 라우터 등록 완료');
+console.log('posts.js 라우터 등록 완료');
 
 // ============================
-//   multer 설정
+// multer 설정
 // ============================
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -24,7 +24,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // ============================
-//   후기 글 작성 API
+// 후기 글 작성 API
 // ============================
 router.post('/', verifyToken, upload.array('images'), async (req, res) => {
     const connection = await pool.getConnection();
@@ -40,7 +40,7 @@ router.post('/', verifyToken, upload.array('images'), async (req, res) => {
 
         const isAdvertisedValue = is_advertised === 'true' ? 1 : 0;
 
-        // 1️⃣ posts 테이블에 글 저장
+        // 1) posts 테이블에 글 저장
         const [result] = await connection.query(
             `INSERT INTO posts (user_id, title, content, region, is_advertised)
              VALUES (?, ?, ?, ?, ?)`,
@@ -49,7 +49,7 @@ router.post('/', verifyToken, upload.array('images'), async (req, res) => {
 
         const postId = result.insertId;
 
-        // 2️⃣ 이미지가 있다면 post_images 테이블에 저장
+        // 2) 이미지가 있다면 post_images 테이블에 저장
         if (req.files && req.files.length > 0) {
             const imageValues = req.files.map((file, index) => [
                 postId,
@@ -81,11 +81,11 @@ router.post('/', verifyToken, upload.array('images'), async (req, res) => {
 });
 
 // ============================
-//   후기 이미지 조회 API
+// 후기 이미지 조회 API
 // ============================
 router.get('/:postId/images', async (req, res) => {
     try {
-        const { postId } = req.params; // ✅ 제일 먼저 선언해야 함
+        const { postId } = req.params; // 제일 먼저 선언해야 함
         console.log('요청받은 postId:', postId);
 
         const [rows] = await pool.query(
@@ -108,7 +108,7 @@ router.get('/:postId/images', async (req, res) => {
 });
 
 // ============================
-//   후기 글 상세 조회 API
+// 후기 글 상세 조회 API
 // ============================
 router.get('/:postId', async (req, res) => {
     try {
@@ -116,7 +116,7 @@ router.get('/:postId', async (req, res) => {
 
         // 게시글 본문 가져오기
         const [postRows] = await pool.query(
-            `SELECT 
+            `SELECT
                  p.post_id,
                  p.user_id,
                  p.title,
@@ -150,7 +150,7 @@ router.get('/:postId', async (req, res) => {
 
         // 댓글 가져오기
         const [comments] = await pool.query(
-            `SELECT 
+            `SELECT
                  c.comment_id,
                  c.user_id,
                  c.content,
@@ -179,7 +179,7 @@ router.get('/:postId', async (req, res) => {
 });
 
 // ============================
-//   좋아요 / 싫어요 (토글 + 상호배타)
+// 좋아요 / 싫어요 (토글 + 상호배타)
 // ============================
 function reactToPost(reactionType) {
     const opposite = reactionType === 'like' ? 'dislike' : 'like';
@@ -208,7 +208,7 @@ function reactToPost(reactionType) {
             let myReaction;
 
             if (existing.length === 0) {
-                // 처음 누름 → 새로 등록
+                // 처음 누름 -> 새로 등록
                 await connection.query('INSERT INTO post_reactions (post_id, user_id, reaction) VALUES (?, ?, ?)', [
                     postId,
                     userId,
@@ -219,7 +219,7 @@ function reactToPost(reactionType) {
                 ]);
                 myReaction = reactionType;
             } else if (existing[0].reaction === reactionType) {
-                // 같은 걸 다시 누름 → 취소
+                // 같은 걸 다시 누름 -> 취소
                 await connection.query('DELETE FROM post_reactions WHERE post_id = ? AND user_id = ?', [
                     postId,
                     userId,
@@ -229,7 +229,7 @@ function reactToPost(reactionType) {
                 ]);
                 myReaction = null;
             } else {
-                // 반대를 누르고 있었음 → 전환
+                // 반대를 누르고 있었음 -> 전환
                 await connection.query('UPDATE post_reactions SET reaction = ? WHERE post_id = ? AND user_id = ?', [
                     reactionType,
                     postId,
@@ -263,7 +263,7 @@ router.post('/:postId/like', verifyToken, reactToPost('like'));
 router.post('/:postId/dislike', verifyToken, reactToPost('dislike'));
 
 // ============================
-//   내 반응(좋아요/싫어요) 조회 API
+// 내 반응(좋아요/싫어요) 조회 API
 // ============================
 router.get('/:postId/reaction', verifyToken, async (req, res) => {
     try {
@@ -283,7 +283,7 @@ router.get('/:postId/reaction', verifyToken, async (req, res) => {
 });
 
 // ============================
-//   후기 글 목록 조회 API
+// 후기 글 목록 조회 API
 // ============================
 router.get('/', async (req, res) => {
     try {
@@ -302,10 +302,10 @@ router.get('/', async (req, res) => {
             params.push(region);
         }
 
-        // ✅ 기본 정렬: 최신순(post_id DESC)
+        // 기본 정렬: 최신순(post_id DESC)
         let orderBy = 'ORDER BY p.post_id DESC';
 
-        // ✅ 정렬 옵션
+        // 정렬 옵션
         if (sort === 'popular') {
             orderBy = 'ORDER BY p.likes DESC, p.post_id DESC';
         } else if (sort === 'disliked') {
@@ -329,7 +329,7 @@ router.get('/', async (req, res) => {
 });
 
 // ============================
-//   후기 글 수정 API (통합형)
+// 후기 글 수정 API (통합형)
 // ============================
 router.put('/:postId', verifyToken, upload.array('images'), async (req, res) => {
     const connection = await pool.getConnection();
@@ -340,7 +340,7 @@ router.put('/:postId', verifyToken, upload.array('images'), async (req, res) => 
         const userId = req.user.user_id;
         const { title, content, region, is_advertised } = req.body;
 
-        // 🔍 본인 글인지 확인
+        // 본인 글인지 확인
         const [rows] = await connection.query('SELECT user_id FROM posts WHERE post_id = ?', [postId]);
         if (rows.length === 0) {
             await connection.rollback();
@@ -351,30 +351,30 @@ router.put('/:postId', verifyToken, upload.array('images'), async (req, res) => 
             return res.status(403).json({ ok: false, message: '본인 글만 수정할 수 있습니다.' });
         }
 
-        // ✅ 기존 이미지 목록 조회
+        // 기존 이미지 목록 조회
         const [oldImages] = await connection.query('SELECT image_url FROM post_images WHERE post_id = ?', [postId]);
 
-        // ✅ 실제 파일 삭제
+        // 실제 파일 삭제
         for (const img of oldImages) {
             const filePath = path.join(__dirname, '../uploads', img.image_url);
             fs.unlink(filePath, (err) => {
-                if (err) console.warn(`⚠️ 이미지 파일 삭제 실패: ${img.image_url}`);
+                if (err) console.warn(`이미지 파일 삭제 실패: ${img.image_url}`);
             });
         }
 
-        // ✅ DB에서 이미지 정보 삭제
+        // DB에서 이미지 정보 삭제
         await connection.query('DELETE FROM post_images WHERE post_id = ?', [postId]);
 
-        // ✅ 글 본문 수정
+        // 글 본문 수정
         const isAdvertisedValue = is_advertised === 'true' ? 1 : 0;
         await connection.query(
-            `UPDATE posts 
+            `UPDATE posts
              SET title = ?, content = ?, region = ?, is_advertised = ?
              WHERE post_id = ?`,
             [title, content, region || null, isAdvertisedValue, postId]
         );
 
-        // ✅ 새 이미지가 있다면 등록
+        // 새 이미지가 있다면 등록
         if (req.files && req.files.length > 0) {
             const insertValues = req.files.map((file, index) => [
                 postId,
@@ -398,7 +398,7 @@ router.put('/:postId', verifyToken, upload.array('images'), async (req, res) => 
 });
 
 // ============================
-//   후기 글 삭제 API (이미지 파일 포함)
+// 후기 글 삭제 API (이미지 파일 포함)
 // ============================
 router.delete('/:postId', verifyToken, async (req, res) => {
     const connection = await pool.getConnection();
@@ -408,7 +408,7 @@ router.delete('/:postId', verifyToken, async (req, res) => {
         const postId = req.params.postId;
         const userId = req.user.user_id;
 
-        // 🔍 본인 글인지 확인
+        // 본인 글인지 확인
         const [rows] = await connection.query('SELECT user_id FROM posts WHERE post_id = ?', [postId]);
         if (rows.length === 0) {
             await connection.rollback();
@@ -419,18 +419,18 @@ router.delete('/:postId', verifyToken, async (req, res) => {
             return res.status(403).json({ ok: false, message: '본인 글만 삭제할 수 있습니다.' });
         }
 
-        // ✅ 1️⃣ 해당 글의 이미지 목록 조회
+        // 1) 해당 글의 이미지 목록 조회
         const [images] = await connection.query('SELECT image_url FROM post_images WHERE post_id = ?', [postId]);
 
-        // ✅ 2️⃣ 실제 파일 삭제
+        // 2) 실제 파일 삭제
         for (const img of images) {
             const filePath = path.join(__dirname, '../uploads', img.image_url);
             fs.unlink(filePath, (err) => {
-                if (err) console.warn(`⚠️ 이미지 파일 삭제 실패: ${img.image_url}`);
+                if (err) console.warn(`이미지 파일 삭제 실패: ${img.image_url}`);
             });
         }
 
-        // ✅ 3️⃣ 게시글 삭제 (CASCADE로 post_images도 자동 제거)
+        // 3) 게시글 삭제 (CASCADE로 post_images도 자동 제거)
         await connection.query('DELETE FROM posts WHERE post_id = ?', [postId]);
 
         await connection.commit();
@@ -445,7 +445,7 @@ router.delete('/:postId', verifyToken, async (req, res) => {
 });
 
 // ============================
-//   Tiptap 이미지 업로드 API
+// Tiptap 이미지 업로드 API
 // ============================
 router.post('/upload', upload.single('images'), async (req, res) => {
     try {
@@ -455,7 +455,7 @@ router.post('/upload', upload.single('images'), async (req, res) => {
 
         // 업로드된 이미지 접근 경로 생성
         const imageUrl = `http://localhost:3000/uploads/${req.file.filename}`;
-        console.log('📸 업로드된 이미지 경로:', imageUrl);
+        console.log('업로드된 이미지 경로:', imageUrl);
 
         res.status(200).json({ ok: true, url: imageUrl });
     } catch (err) {

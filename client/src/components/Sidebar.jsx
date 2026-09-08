@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Modal, Form, Alert } from 'react-bootstrap';
+import { BsShieldLock } from 'react-icons/bs';
 import { loginUser, requestRegisterCode, verifyRegisterCode, getProfile, forgotPassword, findEmail } from '../api/auth';
 import { useNavigate } from 'react-router-dom';
 
@@ -35,7 +36,7 @@ const Sidebar = () => {
         console.log('현재 로그인 상태:', isLoggedIn, userInfo);
     }, [isLoggedIn, userInfo]);
 
-    // ✅ 새로고침 시 토큰 확인 + 프로필 불러오기
+    // 새로고침 시 토큰 확인 + 프로필 불러오기
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (token) {
@@ -52,7 +53,7 @@ const Sidebar = () => {
         }
     }, []);
 
-    // ✅ 로그인
+    // 로그인
     const handleLogin = async (e) => {
         e.preventDefault();
         const email = e.target.formEmail.value;
@@ -66,10 +67,10 @@ const Sidebar = () => {
             api.defaults.headers.common['Authorization'] = `Bearer ${res.token}`;
 
             setUserInfo(res.user);
-            setIsLoggedIn(true); // ✅ 순서 중요
+            setIsLoggedIn(true); // 순서 중요
             setShowLogin(false);
 
-            // ✅ 렌더링 강제 갱신용 로그 (디버그)
+            // 렌더링 강제 갱신용 로그 (디버그)
             console.log('userInfo 업데이트 완료:', res.user);
             alert('로그인 성공!');
             window.dispatchEvent(new Event('authChange'));
@@ -81,7 +82,7 @@ const Sidebar = () => {
         }
     };
 
-    // ✅ 회원가입 상태 초기화
+    // 회원가입 상태 초기화
     const resetRegisterState = () => {
         setRegisterStep('form');
         setPendingEmail('');
@@ -89,7 +90,7 @@ const Sidebar = () => {
         setCodeInput('');
     };
 
-    // ✅ 회원가입 1단계: 이메일 인증코드 발급
+    // 회원가입 1단계: 이메일 인증코드 발급
     const handleRequestCode = async (e) => {
         e.preventDefault();
         const email = e.target.registerEmail.value;
@@ -117,7 +118,7 @@ const Sidebar = () => {
         }
     };
 
-    // ✅ 회원가입 2단계: 인증코드 확인
+    // 회원가입 2단계: 인증코드 확인
     const handleVerifyCode = async (e) => {
         e.preventDefault();
 
@@ -138,7 +139,7 @@ const Sidebar = () => {
         }
     };
 
-    // ✅ 아이디(이메일) 찾기
+    // 아이디(이메일) 찾기
     const handleFindEmail = async (e) => {
         e.preventDefault();
 
@@ -156,7 +157,7 @@ const Sidebar = () => {
         }
     };
 
-    // ✅ 비밀번호 찾기
+    // 비밀번호 찾기
     const handleForgotPassword = async (e) => {
         e.preventDefault();
         setResetInfo(null);
@@ -175,7 +176,7 @@ const Sidebar = () => {
         }
     };
 
-    // ✅ 로그아웃
+    // 로그아웃
     const handleLogout = async () => {
         try {
             await api.post('/users/logout');
@@ -249,7 +250,8 @@ const Sidebar = () => {
                                 size="sm"
                                 onClick={() => navigate('/admin/login-history')}
                             >
-                                🛡️ 전체 로그인 이력
+                                <BsShieldLock className="me-1" />
+                                전체 로그인 이력
                             </Button>
                         )}
                         <Button variant="outline-primary" size="sm" onClick={handleLogout}>

@@ -3,10 +3,10 @@ const router = express.Router();
 const pool = require('./db');
 const { verifyToken } = require('../middlewares/auth');
 
-console.log('✅ schedules.js 라우터 등록 완료');
+console.log('schedules.js 라우터 등록 완료');
 
 // ============================
-//   여행 일정 등록 API
+// 여행 일정 등록 API
 // ============================
 router.post('/', verifyToken, async (req, res) => {
     const conn = await pool.getConnection();
@@ -14,7 +14,7 @@ router.post('/', verifyToken, async (req, res) => {
         const userId = req.user.user_id;
         const { title, start_date, end_date, is_public = 'N' } = req.body;
 
-        // ✅ 입력값 검증
+        // 입력값 검증
         if (!title || !start_date || !end_date) {
             return res.status(400).json({ ok: false, message: '필수 항목이 누락되었습니다.' });
         }
@@ -24,7 +24,7 @@ router.post('/', verifyToken, async (req, res) => {
 
         await conn.beginTransaction();
 
-        // ✅ 1️⃣ schedules 테이블에 일정 추가
+        // 1) schedules 테이블에 일정 추가
         const [result] = await conn.query(
             `INSERT INTO schedules (user_id, title, start_date, end_date, is_public)
              VALUES (?, ?, ?, ?, ?)`,
@@ -32,7 +32,7 @@ router.post('/', verifyToken, async (req, res) => {
         );
         const scheduleId = result.insertId;
 
-        // ✅ 2️⃣ Day 자동 생성
+        // 2) Day 자동 생성
         const start = new Date(start_date);
         const end = new Date(end_date);
         const days = [];
@@ -65,7 +65,7 @@ router.post('/', verifyToken, async (req, res) => {
         });
     } catch (err) {
         await conn.rollback();
-        console.error('🧨 일정 등록 오류:', err);
+        console.error('일정 등록 오류:', err);
         res.status(500).json({ ok: false, message: '서버 오류' });
     } finally {
         conn.release();
@@ -73,7 +73,7 @@ router.post('/', verifyToken, async (req, res) => {
 });
 
 // ============================
-//   상세 일정(장소) 등록 API
+// 상세 일정(장소) 등록 API
 // ============================
 router.post('/:dayId/places', verifyToken, async (req, res) => {
     const connection = await pool.getConnection();
@@ -86,7 +86,7 @@ router.post('/:dayId/places', verifyToken, async (req, res) => {
             return res.status(400).json({ ok: false, message: '장소 이름을 입력해주세요.' });
         }
 
-        // ✅ 해당 day가 존재하는지 확인 + 소유자 확인
+        // 해당 day가 존재하는지 확인 + 소유자 확인
         const [dayRows] = await connection.query(
             `SELECT d.schedule_id, s.user_id
              FROM schedule_days d
@@ -103,7 +103,7 @@ router.post('/:dayId/places', verifyToken, async (req, res) => {
             return res.status(403).json({ ok: false, message: '본인 일정에만 장소를 추가할 수 있습니다.' });
         }
 
-        // ✅ 현재 day의 마지막 순서(place_order) 구하기
+        // 현재 day의 마지막 순서(place_order) 구하기
         const [orderRows] = await connection.query(
             `SELECT COALESCE(MAX(place_order), 0) + 1 AS next_order
              FROM schedule_places
@@ -113,9 +113,9 @@ router.post('/:dayId/places', verifyToken, async (req, res) => {
 
         const nextOrder = orderRows[0].next_order;
 
-        // ✅ 장소 등록
+        // 장소 등록
         const [result] = await connection.query(
-            `INSERT INTO schedule_places 
+            `INSERT INTO schedule_places
              (day_id, place_order, name, address, memo, is_reservable)
              VALUES (?, ?, ?, ?, ?, ?)`,
             [dayId, nextOrder, name, address || null, memo || null, is_reservable || 'N']
@@ -141,16 +141,16 @@ router.post('/:dayId/places', verifyToken, async (req, res) => {
 });
 
 // ============================
-//   공개 일정 목록 조회 API
+// 공개 일정 목록 조회 API
 // ============================
 router.get('/public', async (req, res) => {
     try {
-        const keyword = req.query.keyword || ''; // 🔍 검색 키워드 (선택)
+        const keyword = req.query.keyword || ''; // 검색 키워드 (선택)
 
         let query = `
-            SELECT DISTINCT 
-                s.schedule_id, 
-                s.title, 
+            SELECT DISTINCT
+                s.schedule_id,
+                s.title,
                 DATE_FORMAT(s.start_date, '%Y-%m-%d') AS start_date,
                 DATE_FORMAT(s.end_date, '%Y-%m-%d') AS end_date,
                 s.is_public,
@@ -168,13 +168,13 @@ router.get('/public', async (req, res) => {
 
         const params = [];
 
-        // 🔍 검색 기능: 제목(title) 또는 장소명(name)
+        // 검색 기능: 제목(title) 또는 장소명(name)
         if (keyword) {
             query += ` AND (s.title LIKE ? OR p.name LIKE ?)`;
             params.push(`%${keyword}%`, `%${keyword}%`);
         }
 
-        // ✅ 최신 등록순
+        // 최신 등록순
         query += ` ORDER BY created_at DESC`;
 
         // DB 조회
@@ -187,7 +187,7 @@ router.get('/public', async (req, res) => {
             });
         }
 
-        // ✅ "2박 3일" 형식 추가
+        // "2박 3일" 형식 추가
         const formatted = rows.map((r) => ({
             ...r,
             duration: `${r.nights}박 ${r.days}일`,
@@ -205,14 +205,14 @@ router.get('/public', async (req, res) => {
 });
 
 // ============================
-//   내가 작성한 일정 목록 조회 API
+// 내가 작성한 일정 목록 조회 API
 // ============================
 router.get('/my', verifyToken, async (req, res) => {
     try {
-        const userId = req.user.user_id; // ✅ 토큰에서 사용자 ID 가져오기
+        const userId = req.user.user_id; // 토큰에서 사용자 ID 가져오기
 
         const [rows] = await pool.query(
-            `SELECT 
+            `SELECT
                  s.schedule_id,
                  s.title,
                  DATE_FORMAT(s.start_date, '%Y-%m-%d') AS start_date,
@@ -252,7 +252,7 @@ router.get('/my', verifyToken, async (req, res) => {
 });
 
 // ============================
-//   여행 일정 상세 조회 API
+// 여행 일정 상세 조회 API
 // ============================
 router.get('/:scheduleId', async (req, res) => {
     const connection = await pool.getConnection();
@@ -260,9 +260,9 @@ router.get('/:scheduleId', async (req, res) => {
     try {
         const { scheduleId } = req.params;
 
-        // 1️⃣ 기본 일정 정보 가져오기
+        // 1) 기본 일정 정보 가져오기
         const [scheduleRows] = await connection.query(
-            `SELECT 
+            `SELECT
                 s.schedule_id,
                 s.user_id,
                 s.title,
@@ -286,9 +286,9 @@ router.get('/:scheduleId', async (req, res) => {
 
         const schedule = scheduleRows[0];
 
-        // 2️⃣ 각 Day 불러오기
+        // 2) 각 Day 불러오기
         const [dayRows] = await connection.query(
-            `SELECT 
+            `SELECT
                 day_id,
                 day_order,
                 DATE_FORMAT(date, '%Y-%m-%d') AS date
@@ -298,10 +298,10 @@ router.get('/:scheduleId', async (req, res) => {
             [scheduleId]
         );
 
-        // 3️⃣ 각 Day별 장소 묶어서 정리
+        // 3) 각 Day별 장소 묶어서 정리
         for (const day of dayRows) {
             const [places] = await connection.query(
-                `SELECT 
+                `SELECT
                     place_id,
                     place_order,
                     name,
@@ -313,10 +313,10 @@ router.get('/:scheduleId', async (req, res) => {
                  ORDER BY place_order ASC`,
                 [day.day_id]
             );
-            day.places = places; // ⬅️ 각 Day에 연결
+            day.places = places; // 각 Day에 연결
         }
 
-        // 4️⃣ 결과 반환
+        // 4) 결과 반환
         res.json({
             ok: true,
             data: {
@@ -333,7 +333,7 @@ router.get('/:scheduleId', async (req, res) => {
 });
 
 // ============================
-//   여행 일정 복제 API (공개 일정 → 내 일정으로 복사)
+// 여행 일정 복제 API (공개 일정 -> 내 일정으로 복사)
 // ============================
 router.post('/:scheduleId/copy', verifyToken, async (req, res) => {
     const connection = await pool.getConnection();
@@ -354,7 +354,7 @@ router.post('/:scheduleId/copy', verifyToken, async (req, res) => {
 
         const origin = originRows[0];
 
-        // 1️⃣ 새 일정 생성 (복제본은 기본적으로 비공개로 시작)
+        // 1) 새 일정 생성 (복제본은 기본적으로 비공개로 시작)
         const [scheduleResult] = await connection.query(
             `INSERT INTO schedules (user_id, title, start_date, end_date, is_public)
              VALUES (?, ?, ?, ?, 'N')`,
@@ -362,7 +362,7 @@ router.post('/:scheduleId/copy', verifyToken, async (req, res) => {
         );
         const newScheduleId = scheduleResult.insertId;
 
-        // 2️⃣ Day 복제 + old_day_id → new_day_id 매핑
+        // 2) Day 복제 + old_day_id -> new_day_id 매핑
         const [originDays] = await connection.query(
             `SELECT day_id, day_order, date FROM schedule_days WHERE schedule_id = ? ORDER BY day_order ASC`,
             [scheduleId]
@@ -377,7 +377,7 @@ router.post('/:scheduleId/copy', verifyToken, async (req, res) => {
             dayIdMap.set(day.day_id, dayResult.insertId);
         }
 
-        // 3️⃣ Day별 장소 복제
+        // 3) Day별 장소 복제
         for (const [oldDayId, newDayId] of dayIdMap) {
             const [places] = await connection.query(
                 `SELECT place_order, name, address, memo, is_reservable
@@ -395,7 +395,7 @@ router.post('/:scheduleId/copy', verifyToken, async (req, res) => {
             }
         }
 
-        // 4️⃣ 원본 일정의 복제횟수 증가
+        // 4) 원본 일정의 복제횟수 증가
         await connection.query(`UPDATE schedules SET copy_count = copy_count + 1 WHERE schedule_id = ?`, [
             scheduleId,
         ]);
@@ -417,7 +417,7 @@ router.post('/:scheduleId/copy', verifyToken, async (req, res) => {
 });
 
 // ============================
-//   여행 일정 수정 API
+// 여행 일정 수정 API
 // ============================
 router.put('/:scheduleId', verifyToken, async (req, res) => {
     const connection = await pool.getConnection();
@@ -441,7 +441,7 @@ router.put('/:scheduleId', verifyToken, async (req, res) => {
         }
 
         // mysql2가 DATE 컬럼을 로컬 자정 기준 Date 객체로 반환하므로,
-        // toISOString(UTC 기준)으로 변환하면 시간대에 따라 하루 밀릴 수 있음 → 로컬 게터로 복원
+        // toISOString(UTC 기준)으로 변환하면 시간대에 따라 하루 밀릴 수 있음 -> 로컬 게터로 복원
         const dbDateToStr = (d) => {
             const date = new Date(d);
             const y = date.getFullYear();
@@ -465,7 +465,7 @@ router.put('/:scheduleId', verifyToken, async (req, res) => {
             [newTitle, newStart, newEnd, newIsPublic, scheduleId]
         );
 
-        // ✅ 날짜 범위가 바뀐 경우: 기존 범위 밖 Day는 삭제(장소도 함께 삭제), 겹치는 Day는 유지, 새로 늘어난 날짜만 추가
+        // 날짜 범위가 바뀐 경우: 기존 범위 밖 Day는 삭제(장소도 함께 삭제), 겹치는 Day는 유지, 새로 늘어난 날짜만 추가
         const [existingDays] = await connection.query(
             'SELECT day_id, date FROM schedule_days WHERE schedule_id = ?',
             [scheduleId]
@@ -518,7 +518,7 @@ router.put('/:scheduleId', verifyToken, async (req, res) => {
 });
 
 // ============================
-//   여행 일정 삭제 API
+// 여행 일정 삭제 API
 // ============================
 router.delete('/:scheduleId', verifyToken, async (req, res) => {
     try {
@@ -543,7 +543,7 @@ router.delete('/:scheduleId', verifyToken, async (req, res) => {
 });
 
 // ============================
-//   상세 일정(장소) 수정 API
+// 상세 일정(장소) 수정 API
 // ============================
 router.put('/places/:placeId', verifyToken, async (req, res) => {
     try {
@@ -583,7 +583,7 @@ router.put('/places/:placeId', verifyToken, async (req, res) => {
 });
 
 // ============================
-//   상세 일정(장소) 삭제 API
+// 상세 일정(장소) 삭제 API
 // ============================
 router.delete('/places/:placeId', verifyToken, async (req, res) => {
     try {

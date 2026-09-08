@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Row, Col, Button, Badge, Spinner } from 'react-bootstrap';
+import { BsGift } from 'react-icons/bs';
 import api from '../api/axios';
 
 const Points = () => {
@@ -10,12 +11,12 @@ const Points = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // ✅ 실제 포인트 가져오기
+                // 실제 포인트 가져오기
                 const statsRes = await api.get('/users/stats');
                 const myPoints = statsRes.data.stats.points;
                 setPoints(myPoints);
 
-                // ✅ 더미 쿠폰 (확장 가능 구조)
+                // 더미 쿠폰 (확장 가능 구조)
                 setCoupons([
                     {
                         id: 1,
@@ -64,7 +65,10 @@ const Points = () => {
 
     return (
         <div style={{ maxWidth: '900px', margin: 'auto', padding: '20px' }}>
-            <h4 className="mb-4">🎁 포인트 사용처</h4>
+            <h4 className="mb-4">
+                <BsGift className="me-2" />
+                포인트 사용처
+            </h4>
 
             {/* 내 포인트 카드 */}
             <Card className="p-4 mb-4 shadow-sm border-0 text-center" style={{ borderRadius: '14px' }}>

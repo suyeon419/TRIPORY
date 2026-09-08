@@ -3,12 +3,12 @@ const router = express.Router();
 const pool = require('./db');
 const { verifyToken } = require('../middlewares/auth');
 
-console.log('✅ inquiries.js 라우터 등록 완료');
+console.log('inquiries.js 라우터 등록 완료');
 
 const ALLOWED_TYPES = ['general', 'account', 'bug', 'suggestion'];
 
 // ============================
-//   문의 등록 API
+// 문의 등록 API
 // ============================
 router.post('/', verifyToken, async (req, res) => {
     try {

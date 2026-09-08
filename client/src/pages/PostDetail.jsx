@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Button, Form } from 'react-bootstrap';
+import { BsGeoAlt, BsHandThumbsUp, BsHandThumbsDown, BsChatDots } from 'react-icons/bs';
 import api, { API_BASE_URL } from '../api/axios';
 import { getProfile } from '../api/auth';
 
@@ -131,7 +132,8 @@ const PostDetail = () => {
                 </div>
 
                 <div style={{ fontSize: '0.9rem', color: 'gray' }} className="mb-3">
-                    📍 {post.region || '지역 정보 없음'} | 작성자: {post.author_name}
+                    <BsGeoAlt className="me-1" />
+                    {post.region || '지역 정보 없음'} | 작성자: {post.author_name}
                 </div>
 
                 <div className="d-flex gap-2 mb-3">
@@ -140,14 +142,16 @@ const PostDetail = () => {
                         size="sm"
                         onClick={() => handleReact('like')}
                     >
-                        👍 좋아요 {post.likes}
+                        <BsHandThumbsUp className="me-1" />
+                        좋아요 {post.likes}
                     </Button>
                     <Button
                         variant={myReaction === 'dislike' ? 'danger' : 'outline-danger'}
                         size="sm"
                         onClick={() => handleReact('dislike')}
                     >
-                        👎 싫어요 {post.dislikes}
+                        <BsHandThumbsDown className="me-1" />
+                        싫어요 {post.dislikes}
                     </Button>
                 </div>
 
@@ -185,7 +189,10 @@ const PostDetail = () => {
 
                 {/* 댓글 목록 */}
                 <div className="mt-4">
-                    <h6>💬 댓글 ({comments.length})</h6>
+                    <h6>
+                        <BsChatDots className="me-1" />
+                        댓글 ({comments.length})
+                    </h6>
                     {comments.length === 0 ? (
                         <p className="text-muted mt-2">아직 댓글이 없습니다.</p>
                     ) : (

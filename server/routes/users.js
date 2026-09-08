@@ -22,7 +22,7 @@ const maskEmail = (email) => {
 };
 
 // ============================
-//   회원가입 1단계: 이메일 인증코드 발급
+// 회원가입 1단계: 이메일 인증코드 발급
 // ============================
 router.post(
     '/register/request-code',
@@ -76,7 +76,7 @@ router.post(
 );
 
 // ============================
-//   회원가입 2단계: 인증코드 확인 후 계정 생성
+// 회원가입 2단계: 인증코드 확인 후 계정 생성
 // ============================
 router.post(
     '/register/verify',
@@ -147,7 +147,7 @@ router.post(
 );
 
 // ============================
-//   이메일(아이디) 찾기
+// 이메일(아이디) 찾기
 // ============================
 router.post(
     '/find-email',
@@ -176,7 +176,7 @@ router.post(
 );
 
 // ============================
-//   비밀번호 재설정 요청 (Forgot Password)
+// 비밀번호 재설정 요청 (Forgot Password)
 // ============================
 router.post('/forgot-password', [body('email').isEmail().withMessage('유효한 이메일 형식이 아닙니다.')], async (req, res) => {
     const errors = validationResult(req);
@@ -216,7 +216,7 @@ router.post('/forgot-password', [body('email').isEmail().withMessage('유효한 
 });
 
 // ============================
-//   비밀번호 재설정 (Reset Password)
+// 비밀번호 재설정 (Reset Password)
 // ============================
 router.post(
     '/reset-password',
@@ -272,7 +272,7 @@ router.post(
 );
 
 // ============================
-//   로그인 (Login)
+// 로그인 (Login)
 // ============================
 router.post(
     '/login',
@@ -294,25 +294,25 @@ router.post(
             const isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) return res.status(401).json({ ok: false, message: '비밀번호가 일치하지 않습니다.' });
 
-            // ✅ 로그인 시간 & IP
+            // 로그인 시간 & IP
             const loginTime = new Date();
             const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
 
-            // ✅ 로그인 로그 기록
+            // 로그인 로그 기록
             await pool.query(
                 `INSERT INTO login_logs (user_id, login_time, ip_address)
          VALUES (?, ?, ?)`,
                 [user.user_id, loginTime, ipAddress]
             );
 
-            // ✅ JWT 발급
+            // JWT 발급
             const token = jwt.sign(
                 { user_id: user.user_id, email: user.email, role: user.role },
                 process.env.JWT_SECRET,
                 { expiresIn: process.env.JWT_EXPIRES_IN || '1d' }
             );
 
-            // ✅ 응답
+            // 응답
             res.status(200).json({
                 ok: true,
                 message: '로그인 성공',
@@ -332,13 +332,13 @@ router.post(
 );
 
 // ============================
-//   로그아웃 (Logout)
+// 로그아웃 (Logout)
 // ============================
 router.post('/logout', verifyToken, async (req, res) => {
     try {
         const userId = req.user.user_id;
 
-        // 1️⃣ 사용자의 가장 최근 로그인 로그 찾기
+        // 1 사용자의 가장 최근 로그인 로그 찾기
         const [rows] = await pool.query(
             `SELECT log_id FROM login_logs
        WHERE user_id = ?
@@ -354,7 +354,7 @@ router.post('/logout', verifyToken, async (req, res) => {
         const logId = rows[0].log_id;
         const logoutTime = new Date();
 
-        // 2️⃣ 로그아웃 시간 업데이트
+        // 2 로그아웃 시간 업데이트
         await pool.query(
             `UPDATE login_logs
        SET logout_time = ?
@@ -370,7 +370,7 @@ router.post('/logout', verifyToken, async (req, res) => {
 });
 
 // ============================
-//   내 프로필 보기 (Get Profile)
+// 내 프로필 보기 (Get Profile)
 // ============================
 router.get('/profile', verifyToken, async (req, res) => {
     try {
@@ -398,7 +398,7 @@ router.get('/profile', verifyToken, async (req, res) => {
 });
 
 // ============================
-//   회원 정보 수정
+// 회원 정보 수정
 // ============================
 router.put('/profile', verifyToken, async (req, res) => {
     try {
@@ -438,7 +438,7 @@ router.put('/profile', verifyToken, async (req, res) => {
 });
 
 // ============================
-//   회원 탈퇴
+// 회원 탈퇴
 // ============================
 router.delete('/delete', verifyToken, async (req, res) => {
     try {
@@ -454,7 +454,7 @@ router.delete('/delete', verifyToken, async (req, res) => {
 });
 
 // ============================
-//   내 활동 통계 API (후기 + 일정 분리형)
+// 내 활동 통계 API (후기 + 일정 분리형)
 // ============================
 router.get('/stats', verifyToken, async (req, res) => {
     try {
@@ -480,8 +480,8 @@ router.get('/stats', verifyToken, async (req, res) => {
         ]);
 
         const [[placeCount]] = await pool.query(
-            `SELECT COUNT(*) AS count 
-       FROM schedule_places 
+            `SELECT COUNT(*) AS count
+       FROM schedule_places
        WHERE day_id IN (
          SELECT day_id FROM schedule_days WHERE schedule_id IN (
            SELECT schedule_id FROM schedules WHERE user_id = ?
@@ -519,14 +519,14 @@ router.get('/stats', verifyToken, async (req, res) => {
 });
 
 // ============================
-//   로그인 이력 조회 API
+// 로그인 이력 조회 API
 // ============================
 router.get('/login-history', verifyToken, async (req, res) => {
     try {
         const userId = req.user.user_id;
 
         const [rows] = await pool.query(
-            `SELECT 
+            `SELECT
          log_id,
          DATE_FORMAT(login_time, '%Y-%m-%d') AS login_time,
          DATE_FORMAT(logout_time, '%Y-%m-%d') AS logout_time,
@@ -545,7 +545,7 @@ router.get('/login-history', verifyToken, async (req, res) => {
 });
 
 // ============================
-//   [관리자] 전체 로그인 이력 조회 API
+// [관리자] 전체 로그인 이력 조회 API
 // ============================
 router.get('/admin/login-history', verifyToken, requireAdmin, async (req, res) => {
     try {

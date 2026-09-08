@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Spinner, Button } from 'react-bootstrap';
+import { BsClockHistory, BsArrowLeft } from 'react-icons/bs';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 
@@ -31,7 +32,10 @@ const LoginHistory = () => {
 
     return (
         <div style={{ maxWidth: '900px', margin: '80px auto', padding: '20px' }}>
-            <h4 className="fw-bold mb-4">🕓 로그인 이력</h4>
+            <h4 className="fw-bold mb-4">
+                <BsClockHistory className="me-2" />
+                로그인 이력
+            </h4>
 
             {logs.length === 0 ? (
                 <p className="text-muted">로그인 기록이 없습니다.</p>
@@ -60,7 +64,8 @@ const LoginHistory = () => {
 
             <div className="text-center mt-4">
                 <Button variant="outline-secondary" onClick={() => navigate('/my-activity')}>
-                    ← 내 활동으로 돌아가기
+                    <BsArrowLeft className="me-1" />
+                    내 활동으로 돌아가기
                 </Button>
             </div>
         </div>

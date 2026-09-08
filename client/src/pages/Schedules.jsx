@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Button, Spinner, Nav, Form, InputGroup } from 'react-bootstrap';
+import { BsCalendar3, BsArrowRepeat, BsPlusLg } from 'react-icons/bs';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 
@@ -13,10 +14,10 @@ const Schedules = () => {
     const [searching, setSearching] = useState(false);
     const navigate = useNavigate();
 
-    // ✅ 토큰 변화를 감지하기 위한 state
+    // 토큰 변화를 감지하기 위한 state
     const [token, setToken] = useState(localStorage.getItem('token'));
 
-    // ✅ 토큰이 변경될 때마다 다시 읽어오기
+    // 토큰이 변경될 때마다 다시 읽어오기
     useEffect(() => {
         const handleStorageChange = () => {
             setToken(localStorage.getItem('token'));
@@ -56,14 +57,14 @@ const Schedules = () => {
 
         fetchSchedules();
 
-        // ✅ Sidebar에서 authChange 이벤트를 감지하면 다시 실행
+        // Sidebar에서 authChange 이벤트를 감지하면 다시 실행
         const handleAuthChange = () => fetchSchedules();
         window.addEventListener('authChange', handleAuthChange);
 
         return () => window.removeEventListener('authChange', handleAuthChange);
     }, []);
 
-    // ✅ 검색 실행 함수
+    // 검색 실행 함수
     const handleSearch = async (e) => {
         e.preventDefault();
         if (!keyword.trim()) {
@@ -83,7 +84,7 @@ const Schedules = () => {
         }
     };
 
-    // ✅ 공개 일정 복제
+    // 공개 일정 복제
     const handleCopySchedule = async (e, scheduleId) => {
         e.stopPropagation();
         if (!window.confirm('이 일정을 내 일정으로 복제하시겠습니까?')) return;
@@ -135,7 +136,10 @@ const Schedules = () => {
                                 {s.is_public === 'Y' ? '공개 일정' : '비공개 일정'}
                             </small>
                             {s.is_public === 'Y' && (
-                                <small className="text-muted ms-2">🔁 {s.copy_count ?? 0}회 복제됨</small>
+                                <small className="text-muted ms-2">
+                                    <BsArrowRepeat className="me-1" />
+                                    {s.copy_count ?? 0}회 복제됨
+                                </small>
                             )}
                         </div>
                         <div className="d-flex gap-2">
@@ -146,7 +150,8 @@ const Schedules = () => {
                                     style={{ whiteSpace: 'nowrap' }}
                                     onClick={(e) => handleCopySchedule(e, s.schedule_id)}
                                 >
-                                    🔁 복제
+                                    <BsArrowRepeat className="me-1" />
+                                    복제
                                 </Button>
                             )}
                             <Button variant="outline-primary" size="sm" style={{ whiteSpace: 'nowrap' }}>
@@ -161,9 +166,12 @@ const Schedules = () => {
 
     return (
         <div style={{ margin: 'auto', maxWidth: '900px', padding: '20px' }}>
-            <h4 className="mb-4">📅 여행 일정</h4>
+            <h4 className="mb-4">
+                <BsCalendar3 className="me-2" />
+                여행 일정
+            </h4>
 
-            {/* 🔍 검색바 (공개 일정 전용) */}
+            {/* 검색바 (공개 일정 전용) */}
             <Form onSubmit={handleSearch} className="mb-4">
                 <InputGroup>
                     <Form.Control
@@ -200,7 +208,8 @@ const Schedules = () => {
 
             <div className="text-end mt-4">
                 <Button variant="primary" onClick={() => (isLoggedIn ? navigate('/schedules/new') : navigate('/'))}>
-                    ➕ 새 일정 만들기
+                    <BsPlusLg className="me-1" />
+                    새 일정 만들기
                 </Button>
             </div>
         </div>

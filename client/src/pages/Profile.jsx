@@ -36,7 +36,7 @@ const Profile = () => {
     };
 
     const handleDeleteAccount = async () => {
-        const confirmDelete = window.confirm('정말로 회원 탈퇴하시겠습니까? 😢');
+        const confirmDelete = window.confirm('정말로 회원 탈퇴하시겠습니까?');
         if (!confirmDelete) return;
 
         try {

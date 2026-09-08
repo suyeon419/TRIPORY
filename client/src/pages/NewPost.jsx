@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Card, Form } from 'react-bootstrap';
+import { BsImage } from 'react-icons/bs';
 import { useNavigate } from 'react-router-dom';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -130,7 +131,7 @@ const NewPost = () => {
     return (
         <div style={{ margin: 'auto', maxWidth: '900px', padding: '20px' }}>
             <Card className="shadow-sm border-0 p-4">
-                <h4 className="mb-4 text-center">여행 후기 작성 ✏️</h4>
+                <h4 className="mb-4 text-center">여행 후기 작성</h4>
                 <Form onSubmit={handleSubmit}>
                     <Form.Group className="mb-3">
                         <Form.Label>제목</Form.Label>
@@ -188,7 +189,8 @@ const NewPost = () => {
                             • List
                         </Button>
                         <Button size="sm" variant="outline-secondary" onClick={handleImageUpload}>
-                            🖼️ 이미지
+                            <BsImage className="me-1" />
+                            이미지
                         </Button>
                     </div>
 
