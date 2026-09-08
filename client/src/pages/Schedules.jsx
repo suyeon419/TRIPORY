@@ -83,6 +83,20 @@ const Schedules = () => {
         }
     };
 
+    // ✅ 공개 일정 복제
+    const handleCopySchedule = async (e, scheduleId) => {
+        e.stopPropagation();
+        if (!window.confirm('이 일정을 내 일정으로 복제하시겠습니까?')) return;
+
+        try {
+            const res = await api.post(`/schedules/${scheduleId}/copy`);
+            alert('내 일정으로 복제되었습니다!');
+            navigate(`/schedules/${res.data.data.schedule_id}`);
+        } catch (err) {
+            alert(err.response?.data?.message || '복제 실패');
+        }
+    };
+
     if (loading)
         return (
             <div className="text-center mt-5">
@@ -90,7 +104,7 @@ const Schedules = () => {
             </div>
         );
 
-    const renderList = (list) => (
+    const renderList = (list, { showCopy = false } = {}) => (
         <div className="d-flex flex-column gap-3 mt-3">
             {list.length === 0 ? (
                 <p className="text-muted">등록된 일정이 없습니다.</p>
@@ -120,10 +134,25 @@ const Schedules = () => {
                             <small className={s.is_public === 'Y' ? 'text-success' : 'text-secondary'}>
                                 {s.is_public === 'Y' ? '공개 일정' : '비공개 일정'}
                             </small>
+                            {s.is_public === 'Y' && (
+                                <small className="text-muted ms-2">🔁 {s.copy_count ?? 0}회 복제됨</small>
+                            )}
                         </div>
-                        <Button variant="outline-primary" size="sm" style={{ whiteSpace: 'nowrap' }}>
-                            자세히 보기
-                        </Button>
+                        <div className="d-flex gap-2">
+                            {showCopy && isLoggedIn && (
+                                <Button
+                                    variant="outline-success"
+                                    size="sm"
+                                    style={{ whiteSpace: 'nowrap' }}
+                                    onClick={(e) => handleCopySchedule(e, s.schedule_id)}
+                                >
+                                    🔁 복제
+                                </Button>
+                            )}
+                            <Button variant="outline-primary" size="sm" style={{ whiteSpace: 'nowrap' }}>
+                                자세히 보기
+                            </Button>
+                        </div>
                     </Card>
                 ))
             )}
@@ -165,7 +194,9 @@ const Schedules = () => {
             )}
 
             {/* 탭 콘텐츠 */}
-            {isLoggedIn && activeTab === 'my' ? renderList(mySchedules) : renderList(publicSchedules)}
+            {isLoggedIn && activeTab === 'my'
+                ? renderList(mySchedules)
+                : renderList(publicSchedules, { showCopy: true })}
 
             <div className="text-end mt-4">
                 <Button variant="primary" onClick={() => (isLoggedIn ? navigate('/schedules/new') : navigate('/'))}>

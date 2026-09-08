@@ -211,7 +211,7 @@ const Sidebar = () => {
                     <Card className="p-3 shadow-sm border-0" style={{ borderRadius: '12px' }}>
                         <div className="d-flex align-items-center mb-3">
                             <img
-                                src="./images/profile-default.png"
+                                src="/images/profile-default.png"
                                 alt="프로필"
                                 style={{
                                     width: '50px',
@@ -222,6 +222,11 @@ const Sidebar = () => {
                             />
                             <div>
                                 <strong>{userInfo?.name}</strong>
+                                {userInfo?.role === 'admin' && (
+                                    <span className="badge bg-dark ms-2" style={{ fontSize: '0.65rem' }}>
+                                        관리자
+                                    </span>
+                                )}
                                 <p style={{ fontSize: '0.7rem', color: 'gray', margin: 0 }}>{userInfo?.email}</p>
                             </div>
                         </div>
@@ -237,6 +242,16 @@ const Sidebar = () => {
                         >
                             내 활동
                         </Button>
+                        {userInfo?.role === 'admin' && (
+                            <Button
+                                className="mb-2"
+                                variant="outline-dark"
+                                size="sm"
+                                onClick={() => navigate('/admin/login-history')}
+                            >
+                                🛡️ 전체 로그인 이력
+                            </Button>
+                        )}
                         <Button variant="outline-primary" size="sm" onClick={handleLogout}>
                             로그아웃
                         </Button>

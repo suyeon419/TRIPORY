@@ -223,6 +223,19 @@ const ScheduleDetail = () => {
         }
     };
 
+    // ✅ 공개 일정 복제
+    const handleCopySchedule = async () => {
+        if (!window.confirm('이 일정을 내 일정으로 복제하시겠습니까?')) return;
+
+        try {
+            const res = await api.post(`/schedules/${scheduleId}/copy`);
+            alert('내 일정으로 복제되었습니다!');
+            navigate(`/schedules/${res.data.data.schedule_id}`);
+        } catch (err) {
+            alert(err.response?.data?.message || '복제 실패');
+        }
+    };
+
     if (loading)
         return (
             <div className="text-center mt-5">
@@ -252,9 +265,12 @@ const ScheduleDetail = () => {
                         <small className={schedule.is_public === 'Y' ? 'text-success' : 'text-secondary'}>
                             {schedule.is_public === 'Y' ? '공개 일정' : '비공개 일정'}
                         </small>
+                        {schedule.is_public === 'Y' && (
+                            <small className="text-muted ms-2">🔁 {schedule.copy_count ?? 0}회 복제됨</small>
+                        )}
                     </div>
 
-                    {userId === Number(schedule.user_id) && (
+                    {userId === Number(schedule.user_id) ? (
                         <div className="d-flex gap-2">
                             <Button size="sm" variant="outline-secondary" onClick={handleOpenEditSchedule}>
                                 수정
@@ -263,6 +279,13 @@ const ScheduleDetail = () => {
                                 삭제
                             </Button>
                         </div>
+                    ) : (
+                        userId &&
+                        schedule.is_public === 'Y' && (
+                            <Button size="sm" variant="outline-success" onClick={handleCopySchedule}>
+                                🔁 내 일정으로 복제
+                            </Button>
+                        )
                     )}
                 </div>
 

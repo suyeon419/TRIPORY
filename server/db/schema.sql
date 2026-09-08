@@ -13,6 +13,7 @@ CREATE TABLE users (
     password   VARCHAR(255) NOT NULL,
     name       VARCHAR(100) NOT NULL,
     phone      VARCHAR(20),
+    role       ENUM('user', 'admin') NOT NULL DEFAULT 'user',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -95,6 +96,7 @@ CREATE TABLE schedules (
     start_date  DATE NOT NULL,
     end_date    DATE NOT NULL,
     is_public   ENUM('Y', 'N') NOT NULL DEFAULT 'N',
+    copy_count  INT NOT NULL DEFAULT 0,
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;

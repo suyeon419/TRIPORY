@@ -153,7 +153,8 @@ router.get('/public', async (req, res) => {
                 s.title, 
                 DATE_FORMAT(s.start_date, '%Y-%m-%d') AS start_date,
                 DATE_FORMAT(s.end_date, '%Y-%m-%d') AS end_date,
-                s.is_public, 
+                s.is_public,
+                s.copy_count,
                 DATE_FORMAT(s.created_at, '%Y-%m-%d') AS created_at,
                 u.name AS author_name,
                 DATEDIFF(s.end_date, s.start_date) AS nights,
@@ -217,6 +218,7 @@ router.get('/my', verifyToken, async (req, res) => {
                  DATE_FORMAT(s.start_date, '%Y-%m-%d') AS start_date,
                  DATE_FORMAT(s.end_date, '%Y-%m-%d') AS end_date,
                  s.is_public,
+                 s.copy_count,
                  DATE_FORMAT(s.created_at, '%Y-%m-%d') AS created_at,
                  DATEDIFF(s.end_date, s.start_date) AS nights,
                  DATEDIFF(s.end_date, s.start_date) + 1 AS days
@@ -267,6 +269,7 @@ router.get('/:scheduleId', async (req, res) => {
                 s.start_date,
                 s.end_date,
                 s.is_public,
+                s.copy_count,
                 DATE_FORMAT(s.created_at, '%Y-%m-%d') AS created_at,
                 u.name AS author_name,
                 DATEDIFF(s.end_date, s.start_date) AS nights,
@@ -323,6 +326,90 @@ router.get('/:scheduleId', async (req, res) => {
         });
     } catch (err) {
         console.error('일정 상세 조회 오류:', err);
+        res.status(500).json({ ok: false, message: '서버 오류' });
+    } finally {
+        connection.release();
+    }
+});
+
+// ============================
+//   여행 일정 복제 API (공개 일정 → 내 일정으로 복사)
+// ============================
+router.post('/:scheduleId/copy', verifyToken, async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+        const { scheduleId } = req.params;
+        const userId = req.user.user_id;
+
+        await connection.beginTransaction();
+
+        const [originRows] = await connection.query(
+            `SELECT title, start_date, end_date FROM schedules WHERE schedule_id = ? AND is_public = 'Y'`,
+            [scheduleId]
+        );
+        if (originRows.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ ok: false, message: '공개된 일정만 복제할 수 있습니다.' });
+        }
+
+        const origin = originRows[0];
+
+        // 1️⃣ 새 일정 생성 (복제본은 기본적으로 비공개로 시작)
+        const [scheduleResult] = await connection.query(
+            `INSERT INTO schedules (user_id, title, start_date, end_date, is_public)
+             VALUES (?, ?, ?, ?, 'N')`,
+            [userId, `${origin.title} (복사본)`, origin.start_date, origin.end_date]
+        );
+        const newScheduleId = scheduleResult.insertId;
+
+        // 2️⃣ Day 복제 + old_day_id → new_day_id 매핑
+        const [originDays] = await connection.query(
+            `SELECT day_id, day_order, date FROM schedule_days WHERE schedule_id = ? ORDER BY day_order ASC`,
+            [scheduleId]
+        );
+
+        const dayIdMap = new Map();
+        for (const day of originDays) {
+            const [dayResult] = await connection.query(
+                `INSERT INTO schedule_days (schedule_id, day_order, date) VALUES (?, ?, ?)`,
+                [newScheduleId, day.day_order, day.date]
+            );
+            dayIdMap.set(day.day_id, dayResult.insertId);
+        }
+
+        // 3️⃣ Day별 장소 복제
+        for (const [oldDayId, newDayId] of dayIdMap) {
+            const [places] = await connection.query(
+                `SELECT place_order, name, address, memo, is_reservable
+                 FROM schedule_places
+                 WHERE day_id = ?
+                 ORDER BY place_order ASC`,
+                [oldDayId]
+            );
+            for (const place of places) {
+                await connection.query(
+                    `INSERT INTO schedule_places (day_id, place_order, name, address, memo, is_reservable)
+                     VALUES (?, ?, ?, ?, ?, ?)`,
+                    [newDayId, place.place_order, place.name, place.address, place.memo, place.is_reservable]
+                );
+            }
+        }
+
+        // 4️⃣ 원본 일정의 복제횟수 증가
+        await connection.query(`UPDATE schedules SET copy_count = copy_count + 1 WHERE schedule_id = ?`, [
+            scheduleId,
+        ]);
+
+        await connection.commit();
+
+        res.status(201).json({
+            ok: true,
+            message: '내 일정으로 복제되었습니다.',
+            data: { schedule_id: newScheduleId },
+        });
+    } catch (err) {
+        await connection.rollback();
+        console.error('일정 복제 오류:', err);
         res.status(500).json({ ok: false, message: '서버 오류' });
     } finally {
         connection.release();

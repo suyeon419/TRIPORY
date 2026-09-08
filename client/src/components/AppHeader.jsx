@@ -13,7 +13,7 @@ const AppHeader = () => {
                     onClick={() => navigate('/')}
                     style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                 >
-                    <img src="./images/logo.png" alt="Tripory Logo" style={{ height: '60px' }} />
+                    <img src="/images/logo.png" alt="Tripory Logo" style={{ height: '60px' }} />
                 </Navbar.Brand>
 
                 <Navbar.Toggle aria-controls="main-navbar" />

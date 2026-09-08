@@ -18,6 +18,7 @@ import ScheduleDetail from './pages/ScheduleDetail';
 import MyActivity from './pages/MyActivity';
 import LoginHistory from './pages/LoginHistory';
 import ResetPassword from './pages/ResetPassword';
+import AdminLoginHistory from './pages/AdminLoginHistory';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
@@ -28,6 +29,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                     <Route path="/my-activity" element={<MyActivity />} />
                     <Route path="/login-history" element={<LoginHistory />} />
                     <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/admin/login-history" element={<AdminLoginHistory />} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/posts" element={<Posts />} />
                     <Route path="/posts/new" element={<NewPost />} />

@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
 const pool = require('./db');
 require('dotenv').config();
-const { verifyToken } = require('../middlewares/auth');
+const { verifyToken, requireAdmin } = require('../middlewares/auth');
 
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000; // 30분
 const hashResetToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
@@ -306,9 +306,11 @@ router.post(
             );
 
             // ✅ JWT 발급
-            const token = jwt.sign({ user_id: user.user_id, email: user.email }, process.env.JWT_SECRET, {
-                expiresIn: process.env.JWT_EXPIRES_IN || '1d',
-            });
+            const token = jwt.sign(
+                { user_id: user.user_id, email: user.email, role: user.role },
+                process.env.JWT_SECRET,
+                { expiresIn: process.env.JWT_EXPIRES_IN || '1d' }
+            );
 
             // ✅ 응답
             res.status(200).json({
@@ -319,6 +321,7 @@ router.post(
                     user_id: user.user_id,
                     name: user.name,
                     email: user.email,
+                    role: user.role,
                 },
             });
         } catch (err) {
@@ -374,8 +377,8 @@ router.get('/profile', verifyToken, async (req, res) => {
         const userId = req.user.user_id;
 
         const [rows] = await pool.query(
-            `SELECT user_id, email, name, phone, created_at 
-       FROM users 
+            `SELECT user_id, email, name, phone, role, created_at
+       FROM users
        WHERE user_id = ?`,
             [userId]
         );
@@ -537,6 +540,32 @@ router.get('/login-history', verifyToken, async (req, res) => {
         res.json({ ok: true, data: rows });
     } catch (err) {
         console.error('로그인 이력 조회 오류:', err);
+        res.status(500).json({ ok: false, message: '서버 오류' });
+    }
+});
+
+// ============================
+//   [관리자] 전체 로그인 이력 조회 API
+// ============================
+router.get('/admin/login-history', verifyToken, requireAdmin, async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            `SELECT
+                 l.log_id,
+                 l.user_id,
+                 u.name,
+                 u.email,
+                 DATE_FORMAT(l.login_time, '%Y-%m-%d') AS login_time,
+                 DATE_FORMAT(l.logout_time, '%Y-%m-%d') AS logout_time,
+                 l.ip_address
+             FROM login_logs l
+             JOIN users u ON l.user_id = u.user_id
+             ORDER BY l.log_id DESC`
+        );
+
+        res.json({ ok: true, data: rows });
+    } catch (err) {
+        console.error('전체 로그인 이력 조회 오류:', err);
         res.status(500).json({ ok: false, message: '서버 오류' });
     }
 });
