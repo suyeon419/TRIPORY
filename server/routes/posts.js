@@ -125,6 +125,7 @@ router.get('/:postId', async (req, res) => {
                  p.is_advertised,
                  p.likes,
                  p.dislikes,
+                 p.report_count,
                  DATE_FORMAT(p.created_at, '%Y-%m-%d') AS created_at,
                  u.name AS author_name
              FROM posts p
@@ -408,15 +409,18 @@ router.delete('/:postId', verifyToken, async (req, res) => {
         const postId = req.params.postId;
         const userId = req.user.user_id;
 
-        // 본인 글인지 확인
+        // 본인 글인지 확인 (관리자는 예외적으로 모든 글 삭제 가능)
         const [rows] = await connection.query('SELECT user_id FROM posts WHERE post_id = ?', [postId]);
         if (rows.length === 0) {
             await connection.rollback();
             return res.status(404).json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
         }
         if (rows[0].user_id !== userId) {
-            await connection.rollback();
-            return res.status(403).json({ ok: false, message: '본인 글만 삭제할 수 있습니다.' });
+            const [me] = await connection.query('SELECT role FROM users WHERE user_id = ?', [userId]);
+            if (me.length === 0 || me[0].role !== 'admin') {
+                await connection.rollback();
+                return res.status(403).json({ ok: false, message: '본인 글만 삭제할 수 있습니다.' });
+            }
         }
 
         // 1) 해당 글의 이미지 목록 조회

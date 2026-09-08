@@ -155,6 +155,7 @@ router.get('/public', async (req, res) => {
                 DATE_FORMAT(s.end_date, '%Y-%m-%d') AS end_date,
                 s.is_public,
                 s.copy_count,
+                s.report_count,
                 DATE_FORMAT(s.created_at, '%Y-%m-%d') AS created_at,
                 u.name AS author_name,
                 DATEDIFF(s.end_date, s.start_date) AS nights,
@@ -219,6 +220,7 @@ router.get('/my', verifyToken, async (req, res) => {
                  DATE_FORMAT(s.end_date, '%Y-%m-%d') AS end_date,
                  s.is_public,
                  s.copy_count,
+                 s.report_count,
                  DATE_FORMAT(s.created_at, '%Y-%m-%d') AS created_at,
                  DATEDIFF(s.end_date, s.start_date) AS nights,
                  DATEDIFF(s.end_date, s.start_date) + 1 AS days
@@ -270,6 +272,7 @@ router.get('/:scheduleId', async (req, res) => {
                 s.end_date,
                 s.is_public,
                 s.copy_count,
+                s.report_count,
                 DATE_FORMAT(s.created_at, '%Y-%m-%d') AS created_at,
                 u.name AS author_name,
                 DATEDIFF(s.end_date, s.start_date) AS nights,
@@ -530,7 +533,10 @@ router.delete('/:scheduleId', verifyToken, async (req, res) => {
             return res.status(404).json({ ok: false, message: '해당 일정을 찾을 수 없습니다.' });
         }
         if (rows[0].user_id !== userId) {
-            return res.status(403).json({ ok: false, message: '본인 일정만 삭제할 수 있습니다.' });
+            const [me] = await pool.query('SELECT role FROM users WHERE user_id = ?', [userId]);
+            if (me.length === 0 || me[0].role !== 'admin') {
+                return res.status(403).json({ ok: false, message: '본인 일정만 삭제할 수 있습니다.' });
+            }
         }
 
         await pool.query('DELETE FROM schedules WHERE schedule_id = ?', [scheduleId]);

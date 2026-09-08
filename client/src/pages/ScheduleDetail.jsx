@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Button, Spinner, Modal, Form } from 'react-bootstrap';
-import { BsArrowRepeat, BsCalendar3, BsPlusLg, BsGeoAlt, BsPencil } from 'react-icons/bs';
+import { BsArrowRepeat, BsCalendar3, BsPlusLg, BsGeoAlt, BsPencil, BsFlag } from 'react-icons/bs';
 import api from '../api/axios';
+import { getProfile } from '../api/auth';
 import axios from 'axios';
 
 const ScheduleDetail = () => {
@@ -13,6 +14,7 @@ const ScheduleDetail = () => {
     const [days, setDays] = useState([]);
     const [loading, setLoading] = useState(true);
     const [userId, setUserId] = useState(null); // 로그인한 유저 ID
+    const [myRole, setMyRole] = useState(null);
 
     // 장소 추가 관련 상태
     const [showModal, setShowModal] = useState(false);
@@ -76,17 +78,16 @@ const ScheduleDetail = () => {
         }
     };
 
-    // JWT 토큰에서 user_id 가져오기
+    // 로그인한 사용자 정보 조회 (권한 판단용)
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (token) {
-            try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                // 숫자 타입으로 변환 (문자열 비교 방지)
-                setUserId(Number(payload.user_id));
-            } catch (err) {
-                console.warn('토큰 파싱 오류:', err);
-            }
+            getProfile()
+                .then((res) => {
+                    setUserId(Number(res.user.user_id));
+                    setMyRole(res.user.role);
+                })
+                .catch((err) => console.warn('내 정보 조회 오류:', err));
         }
     }, []);
 
@@ -272,6 +273,14 @@ const ScheduleDetail = () => {
                                 {schedule.copy_count ?? 0}회 복제됨
                             </small>
                         )}
+                        {myRole === 'admin' && (
+                            <small
+                                className={`ms-2 ${schedule.report_count > 0 ? 'text-danger fw-bold' : 'text-muted'}`}
+                            >
+                                <BsFlag className="me-1" />
+                                신고 {schedule.report_count ?? 0}건
+                            </small>
+                        )}
                     </div>
 
                     {userId === Number(schedule.user_id) ? (
@@ -283,6 +292,10 @@ const ScheduleDetail = () => {
                                 삭제
                             </Button>
                         </div>
+                    ) : myRole === 'admin' ? (
+                        <Button size="sm" variant="outline-danger" onClick={handleDeleteSchedule}>
+                            삭제 (관리자)
+                        </Button>
                     ) : (
                         userId &&
                         schedule.is_public === 'Y' && (

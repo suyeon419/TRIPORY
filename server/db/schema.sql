@@ -57,6 +57,7 @@ CREATE TABLE posts (
     is_advertised TINYINT(1) NOT NULL DEFAULT 0,
     likes         INT NOT NULL DEFAULT 0,
     dislikes      INT NOT NULL DEFAULT 0,
+    report_count  INT NOT NULL DEFAULT 0,
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
@@ -90,14 +91,15 @@ CREATE TABLE comments (
 ) ENGINE=InnoDB;
 
 CREATE TABLE schedules (
-    schedule_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id     INT NOT NULL,
-    title       VARCHAR(255) NOT NULL,
-    start_date  DATE NOT NULL,
-    end_date    DATE NOT NULL,
-    is_public   ENUM('Y', 'N') NOT NULL DEFAULT 'N',
-    copy_count  INT NOT NULL DEFAULT 0,
-    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    schedule_id   INT AUTO_INCREMENT PRIMARY KEY,
+    user_id       INT NOT NULL,
+    title         VARCHAR(255) NOT NULL,
+    start_date    DATE NOT NULL,
+    end_date      DATE NOT NULL,
+    is_public     ENUM('Y', 'N') NOT NULL DEFAULT 'N',
+    copy_count    INT NOT NULL DEFAULT 0,
+    report_count  INT NOT NULL DEFAULT 0,
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 

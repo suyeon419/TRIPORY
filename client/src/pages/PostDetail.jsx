@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Button, Form } from 'react-bootstrap';
-import { BsGeoAlt, BsHandThumbsUp, BsHandThumbsDown, BsChatDots } from 'react-icons/bs';
+import { BsGeoAlt, BsHandThumbsUp, BsHandThumbsDown, BsChatDots, BsTrash, BsFlag } from 'react-icons/bs';
 import api, { API_BASE_URL } from '../api/axios';
 import { getProfile } from '../api/auth';
 
@@ -16,6 +16,7 @@ const PostDetail = () => {
     const [commentText, setCommentText] = useState('');
     const [myReaction, setMyReaction] = useState(null); // 'like' | 'dislike' | null
     const [myUserId, setMyUserId] = useState(null);
+    const [myRole, setMyRole] = useState(null);
     const [editingCommentId, setEditingCommentId] = useState(null);
     const [editText, setEditText] = useState('');
 
@@ -47,10 +48,26 @@ const PostDetail = () => {
                 .catch(() => setMyReaction(null));
 
             getProfile()
-                .then((res) => setMyUserId(res.user.user_id))
+                .then((res) => {
+                    setMyUserId(res.user.user_id);
+                    setMyRole(res.user.role);
+                })
                 .catch(() => setMyUserId(null));
         }
     }, [postId]);
+
+    // 후기 삭제 (작성자 또는 관리자)
+    const handleDeletePost = async () => {
+        if (!window.confirm('이 후기를 삭제하시겠습니까?')) return;
+
+        try {
+            await api.delete(`/posts/${postId}`);
+            alert('후기가 삭제되었습니다.');
+            navigate('/posts');
+        } catch (err) {
+            alert(err.response?.data?.message || '삭제 실패');
+        }
+    };
 
     // 좋아요 / 싫어요
     const handleReact = async (type) => {
@@ -128,7 +145,21 @@ const PostDetail = () => {
             <Card className="shadow-sm border-0 p-4">
                 <div className="d-flex justify-content-between align-items-center mb-2">
                     <h4>{post.title}</h4>
-                    <small className="text-muted">{post.created_at}</small>
+                    <div className="d-flex align-items-center gap-3">
+                        <small className="text-muted">{post.created_at}</small>
+                        {myRole === 'admin' && (
+                            <small className={post.report_count > 0 ? 'text-danger fw-bold' : 'text-muted'}>
+                                <BsFlag className="me-1" />
+                                신고 {post.report_count ?? 0}건
+                            </small>
+                        )}
+                        {(myUserId === post.user_id || myRole === 'admin') && (
+                            <Button size="sm" variant="outline-danger" onClick={handleDeletePost}>
+                                <BsTrash className="me-1" />
+                                {myUserId === post.user_id ? '삭제' : '삭제'}
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 <div style={{ fontSize: '0.9rem', color: 'gray' }} className="mb-3">
