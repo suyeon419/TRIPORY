@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('./db');
 const { verifyToken } = require('../middlewares/auth');
+const { earnPoints } = require('../utils/points');
 
 console.log('schedules.js 라우터 등록 완료');
 
@@ -48,6 +49,9 @@ router.post('/', verifyToken, async (req, res) => {
             days.push({ day_order: dayOrder, date: formatted });
             dayOrder++;
         }
+
+        // 포인트 적립
+        await earnPoints(conn, { userId, reason: 'schedule_create', referenceId: scheduleId });
 
         await conn.commit();
 
@@ -130,6 +134,9 @@ router.post('/:dayId/places', verifyToken, async (req, res) => {
             memo,
             is_reservable: is_reservable || 'N',
         };
+
+        // 포인트 적립
+        await earnPoints(connection, { userId, reason: 'place_add', referenceId: result.insertId });
 
         res.status(201).json({ ok: true, message: '상세 일정이 등록되었습니다.', data: inserted });
     } catch (err) {

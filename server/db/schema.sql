@@ -123,6 +123,19 @@ CREATE TABLE schedule_places (
     FOREIGN KEY (day_id) REFERENCES schedule_days(day_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE point_transactions (
+    transaction_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id        INT NOT NULL,
+    type           ENUM('earn', 'spend') NOT NULL,
+    amount         INT NOT NULL,
+    reason         VARCHAR(50) NOT NULL,
+    reference_type VARCHAR(20),
+    reference_id   INT,
+    created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_id (user_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE inquiries (
     inquiry_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id    INT NOT NULL,

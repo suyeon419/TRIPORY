@@ -5,6 +5,7 @@ const { verifyToken } = require('../middlewares/auth');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { earnPoints } = require('../utils/points');
 
 console.log('posts.js 라우터 등록 완료');
 
@@ -63,6 +64,9 @@ router.post('/', verifyToken, upload.array('images'), async (req, res) => {
                 [imageValues]
             );
         }
+
+        // 3) 포인트 적립
+        await earnPoints(connection, { userId, reason: 'post_write', referenceId: postId });
 
         await connection.commit();
 

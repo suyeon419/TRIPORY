@@ -7,6 +7,7 @@ const { body, validationResult } = require('express-validator');
 const pool = require('./db');
 require('dotenv').config();
 const { verifyToken, requireAdmin } = require('../middlewares/auth');
+const { getPointBalance } = require('../utils/points');
 
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000; // 30분
 const hashResetToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
@@ -490,11 +491,8 @@ router.get('/stats', verifyToken, async (req, res) => {
             [userId]
         );
 
-        const points =
-            postCount.count * 8 + // 글 하나 8P
-            commentCount.count * 2 + // 댓글 하나 2P
-            scheduleCount.count * 5 + // 일정 하나 5P
-            placeCount.count * 1; // 장소 하나 1P
+        // 포인트는 적립/차감 내역(point_transactions)의 합계로 계산한다
+        const points = await getPointBalance(pool, userId);
 
         res.json({
             ok: true,

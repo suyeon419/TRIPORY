@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('./db'); // DB 연결
 const { verifyToken } = require('../middlewares/auth');
+const { earnPoints } = require('../utils/points');
 
 console.log('comments.js 라우터 등록 완료');
 
@@ -26,11 +27,14 @@ router.post('/:postId', verifyToken, async (req, res) => {
         }
 
         // 댓글 등록
-        await pool.query(`INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)`, [
+        const [result] = await pool.query(`INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)`, [
             postId,
             userId,
             content,
         ]);
+
+        // 포인트 적립
+        await earnPoints(pool, { userId, reason: 'comment_write', referenceId: result.insertId });
 
         res.status(201).json({ ok: true, message: '댓글이 등록되었습니다.' });
     } catch (err) {
