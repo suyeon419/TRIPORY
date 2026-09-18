@@ -1,7 +1,15 @@
-import React, { useState } from 'react';
-import { Card, Form, Button, Accordion, Alert } from 'react-bootstrap';
-import { BsEnvelope } from 'react-icons/bs';
+import React, { useState, useEffect } from 'react';
+import { Card, Form, Button, Accordion, Alert, Table } from 'react-bootstrap';
+import { BsEnvelope, BsShieldLock } from 'react-icons/bs';
 import api from '../api/axios';
+import { getProfile } from '../api/auth';
+
+const TYPE_LABELS = {
+    general: '일반 문의',
+    account: '계정 관련',
+    bug: '버그 / 오류 신고',
+    suggestion: '기능 제안',
+};
 
 const Support = () => {
     const [form, setForm] = useState({
@@ -10,6 +18,35 @@ const Support = () => {
     });
     const [sending, setSending] = useState(false);
     const [success, setSuccess] = useState(false);
+
+    const [myRole, setMyRole] = useState(null);
+    const [checkingRole, setCheckingRole] = useState(true);
+    const [inquiries, setInquiries] = useState([]);
+    const [loadingInquiries, setLoadingInquiries] = useState(false);
+
+    // 로그인한 사용자의 권한 확인 (관리자면 문의 목록을 보여주기 위함)
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setCheckingRole(false);
+            return;
+        }
+        getProfile()
+            .then((res) => setMyRole(res.user.role))
+            .catch(() => setMyRole(null))
+            .finally(() => setCheckingRole(false));
+    }, []);
+
+    // 관리자: 접수된 문의 목록 조회
+    useEffect(() => {
+        if (myRole !== 'admin') return;
+
+        setLoadingInquiries(true);
+        api.get('/inquiries')
+            .then((res) => setInquiries(res.data.data || []))
+            .catch((err) => console.error('문의 목록 조회 실패:', err))
+            .finally(() => setLoadingInquiries(false));
+    }, [myRole]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -29,6 +66,53 @@ const Support = () => {
             setSending(false);
         }
     };
+
+    if (checkingRole) return <p className="text-center mt-5">불러오는 중...</p>;
+
+    // 관리자는 문의를 작성할 필요가 없으므로, 접수된 문의 목록을 대신 보여준다.
+    if (myRole === 'admin') {
+        return (
+            <div style={{ maxWidth: '1000px', margin: 'auto', padding: '20px' }}>
+                <h4 className="mb-4">
+                    <BsShieldLock className="me-2" />
+                    접수된 문의 목록
+                </h4>
+
+                <Card className="p-4 shadow-sm border-0" style={{ borderRadius: '14px' }}>
+                    {loadingInquiries ? (
+                        <p className="text-muted mb-0">불러오는 중...</p>
+                    ) : inquiries.length === 0 ? (
+                        <p className="text-muted mb-0">접수된 문의가 없습니다.</p>
+                    ) : (
+                        <Table bordered hover responsive className="mb-0">
+                            <thead className="table-light">
+                                <tr>
+                                    <th>번호</th>
+                                    <th>유형</th>
+                                    <th>작성자</th>
+                                    <th>이메일</th>
+                                    <th>내용</th>
+                                    <th>접수일</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {inquiries.map((inq, idx) => (
+                                    <tr key={inq.inquiry_id}>
+                                        <td>{idx + 1}</td>
+                                        <td>{TYPE_LABELS[inq.type] || inq.type}</td>
+                                        <td>{inq.name}</td>
+                                        <td>{inq.email}</td>
+                                        <td style={{ whiteSpace: 'pre-wrap' }}>{inq.message}</td>
+                                        <td>{inq.created_at}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </Table>
+                    )}
+                </Card>
+            </div>
+        );
+    }
 
     return (
         <div style={{ maxWidth: '900px', margin: 'auto', padding: '20px' }}>

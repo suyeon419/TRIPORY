@@ -1,11 +1,30 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('./db');
-const { verifyToken } = require('../middlewares/auth');
+const { verifyToken, requireAdmin } = require('../middlewares/auth');
 
 console.log('inquiries.js 라우터 등록 완료');
 
 const ALLOWED_TYPES = ['general', 'account', 'bug', 'suggestion'];
+
+// ============================
+// 문의 목록 조회 API (관리자 전용)
+// ============================
+router.get('/', verifyToken, requireAdmin, async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            `SELECT i.inquiry_id, i.type, i.message, i.created_at, u.name, u.email
+             FROM inquiries i
+             JOIN users u ON i.user_id = u.user_id
+             ORDER BY i.created_at DESC`
+        );
+
+        res.json({ ok: true, data: rows });
+    } catch (err) {
+        console.error('문의 목록 조회 오류:', err);
+        res.status(500).json({ ok: false, message: '서버 오류' });
+    }
+});
 
 // ============================
 // 문의 등록 API
